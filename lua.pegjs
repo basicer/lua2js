@@ -21,7 +21,7 @@ BlockStatement =
  
 
 StatatementList = 
-    a:Statement? b:( ws Statement )*
+    a:Statement? b:( ( ws? ";" ws? / ws )+ Statement )*
     {  
         if ( a === null ) return [];
         if ( b === null ) return a;
@@ -39,7 +39,7 @@ String =
     "'" r:$([^']*) "'" { return r; }
 
 Statement = 
-    s: (";" /
+    s: ( 
     BreakStatement /
     NumericFor /
     WhileStatement /
@@ -48,8 +48,8 @@ Statement =
     DoEndGrouped /
     LocalAssingment /
     FunctionDeclaration /
-    LocalFunction
-    ) {  return s == ";" ? { type:"EmptyStatement" } : s; }
+    LocalFunction / $"" & (ws? ";")
+    ) {  return s == "" ? { type:"EmptyStatement" } : s; }
 
 DoEndGrouped = "do" b:BlockStatement "end" { return b }
 
