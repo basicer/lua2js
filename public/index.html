@@ -1,0 +1,103 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="shortcut icon" href="../../assets/ico/favicon.ico">
+
+    <title>Lua 2 JS</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="http://bootswatch.com/darkly/bootstrap.css" rel="stylesheet">
+
+    <link href="stylesheet.css" rel="stylesheet">
+
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+      <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+      <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.16/angular.min.js"></script>
+      <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.1.3/ace.js"></script>
+      <script src="ui-ace.js"></script>
+      <script src="piler.js"></script>
+      <script src="https://constellation.github.io/escodegen/escodegen.browser.js"></script>
+      <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.1.3/mode-lua.js"></script>
+      <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.1.3/mode-javascript.js"></script>
+      <style>
+      .ace_editor { height: 500px; background-color: black; }
+      textarea { width:100%; height: 100px; font-size: 14pt }
+      .x { padding: 10px; color: red !important; }
+      </style>
+  </head>
+
+  <body ng-app="MyApp" ng-controller="main">
+
+    <div class="container">
+      <div class="header">
+        <ul class="nav nav-pills pull-right">
+          <li class="active"><a href="#">Evaluate</a></li>
+        </ul>
+        <h3 class="text-muted">Lua 2 JS</h3>
+      </div>
+
+      <div class="row" style="padding-top: 10px">
+        <div class="col-sm-6">
+	<div ng-model="code" ui-ace="{
+  useWrapMode : true,
+  showGutter: true,
+  theme:'twilight',
+  mode: 'lua',
+  onLoad: aceLoaded,
+  onChange: aceChanged
+}"></div>
+        </div>
+  
+        <div class="col-sm-6">
+<div ng-model="code2" ng-show="error == ''" ui-ace="{
+  useWrapMode : true,
+  showGutter: true,
+  theme:'twilight',
+  mode: 'javascript',
+  onLoad: aceLoaded2,
+  onChange: aceChanged2
+}"></div>
+<div ng-show="error != ''" class="x ace_editor ace_dark ace-twilight">
+{{error}}
+</div>
+        </div>
+      </div>
+      <div class="footer">
+        <p>&copy; basicer 2014</p>
+      </div>
+
+    </div> <!-- /container -->
+    <script type="text/javascript">
+      var myAppModule = angular.module('MyApp', ['ui.ace']);
+        function toJavaScript(code) {
+          
+        }
+
+        function main($scope) { 
+            $scope.code2 = "{\n}";
+            $scope.fix = function(c) { return c.reverse(); }
+            $scope.aceChanged = function() {
+                try {
+                  $scope.error = "";
+                  var c = parser.parse($scope.code);
+                  $scope.code2 = "(function()\n" + escodegen.generate(c) + ")();";
+                } catch ( e ) {
+
+                  $scope.error = e.message + "\n\n\n" + "at " + e.line + ":" + e.column;
+                  $scope.code2 = "";
+                }
+            };
+        }
+    </script>
+  </body>
+</html>
+
