@@ -34,9 +34,24 @@ ReservedWord = "if" / "then" / "else" / "do" / "end" / "return" / "local" /
 Name = !(ReservedWord ws?) a:$([a-zA-Z_][a-zA-Z0-9_]*) { return a; }
 Number = $([0-9]+("." [0-9]+)?)
 
+stringchar =
+    "\\" c:[abfrntv'"] { return {
+        "n": "\n",
+        "b": "\b",
+        "f": "\f",
+        "r": "\r",
+        "t": "\t",
+        "v": "\v",
+        '"': '"',
+        "'": "'" 
+    }[c] } / 
+    "\\\n" { return "" } /
+    "\\\z" ws { return "" } /
+    $[^'"'] 
+
 String =
-    "\"" r:$([^"]*) "\"" { return r; } /
-    "'" r:$([^']*) "'" { return r; }
+    "\"" r:stringchar* "\"" { return r.join(''); } /
+    "'" r:stringchar* "'" { return r.join(''); }
 
 Statement = 
     s: ( 
