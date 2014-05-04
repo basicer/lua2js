@@ -86,6 +86,9 @@
         function main($scope) { 
             $scope.code2 = "{\n}";
             $scope.fix = function(c) { return c.reverse(); }
+            $scope.aceLoaded = function(e) {
+              e.focus();
+            };
             $scope.aceChanged = function() {
                 try {
                   $scope.error = "";
