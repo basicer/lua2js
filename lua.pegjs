@@ -47,6 +47,7 @@ stringchar =
     }[c] } / 
     "\\\n" { return "" } /
     "\\\z" ws { return "" } /
+    "\\" a:[0-9] b:[0-9] c:[0-0] { return parseInt('' + a + b + c); } /
     $[^'"'] 
 
 String =
