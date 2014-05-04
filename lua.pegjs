@@ -1,5 +1,6 @@
 {
-  function loc() { return {start: offset(), end: offset() + text().length } }
+  function loc() { return {start: { line: line(), column: column() } } }
+  function range() { return [offset(), offset() + text().length]; }
   function listHelper(a,b,c) { return [a].concat(b.map(function(b) { return b[c || 2]; })); }
 }
 
@@ -47,7 +48,8 @@ stringchar =
     }[c] } / 
     "\\\n" { return "" } /
     "\\\z" ws { return "" } /
-    "\\" a:[0-9] b:[0-9] c:[0-0] { return parseInt('' + a + b + c); } /
+    "\\" a:$[0-9] b:$[0-9]? c:$[0-9]? { return String.fromCharCode(parseInt('' + a + b + c)); } /
+    "\\" { error('Invalid Escape Sequence') } / 
     $[^'"'] 
 
 String =
@@ -79,7 +81,8 @@ NumericFor =
             left: a,
             right: {type: "BinaryExpression", left: a, right: amount, operator: "+" },
             operator: "=",
-            loc: loc()
+            loc: loc(),
+            range: range()
         };
 
         var out = {
@@ -103,7 +106,9 @@ NumericFor =
                 left: a,
                 right: c,
                 operator: "<="
-            }
+            },
+            loc: loc(),
+            range: range()
         };
 
         return out;
@@ -121,7 +126,9 @@ LocalAssingment =
             }
         ],
         operator: "=",
-        kind: "var"
+        kind: "var",
+        loc: loc(),
+        range: range()
     } }
 
 AssignmentExpression =
@@ -131,13 +138,16 @@ AssignmentExpression =
         left: left,
         right: right,
         operator: "=",
-        loc: loc()
+        loc: loc(),
+        range: range()
     } }
 
 BreakStatement = 
     "break"
     { return {
-        "type": "BreakStatement"
+        "type": "BreakStatement",
+        loc: loc(),
+        range: range()
     } }
 
 ExpressionStatement =
@@ -145,14 +155,15 @@ ExpressionStatement =
     { return {
         type: "ExpressionStatement",
         expression: e,
-        loc: loc()
+        loc: loc(),
+        range: range()
     } }
 
 
 IfStatement =
     "if" ws test:Expression ws "then" ws then:BlockStatement elze:( ws? "else" ws BlockStatement )? ws? "end" 
     {
-        var result = { type: "IfStatement", test: test, consequent: then}
+        var result = { type: "IfStatement", test: test, consequent: then, loc: loc(), range: range()}
         if ( elze !== null ) result.alternate = elze[3];
         return result;
     }
@@ -162,7 +173,8 @@ ReturnStatement =
     { return {
         type: "ReturnStatement",
         argument: argument,
-        loc: loc()
+        loc: loc(),
+        range: range()
     } }
 
 WhileStatement =
@@ -171,7 +183,8 @@ WhileStatement =
         type: "WhileStatement",
         test: test,
         body: body,
-        loc: loc()
+        loc: loc(),
+        range: range()
 
     } }
 
@@ -197,7 +210,8 @@ Expression =
             left: a,
             right: b[3],
             operator: xop,
-            loc: loc()
+            loc: loc(),
+            range: range()
         };
     } / CallExpression / AssignmentExpression
 
@@ -216,20 +230,24 @@ CallExpression =
         type: "CallExpression",
         callee: who,
         arguments: a,
-        loc: loc()
+        loc: loc(),
+        range: range()
     } } /
     who:prefixexp ws? b:ObjectExpression 
     { return {
         type: "CallExpression",
         callee: who,
-        arguments: [b]
+        arguments: [b],
+        loc: loc(),
+        range: range()
     } } /
     who:prefixexp ws? c:String
     { return {
         type: "CallExpression",
         callee: who,
         arguments: [{type: "Literal", value: c}],
-        loc: loc()
+        loc: loc(),
+        range: range()
     } } 
 
 ParenExpr = "(" ws? a:Expression ws? ")" { return a; }
@@ -246,7 +264,8 @@ funcname =
                 object: left,
                 property: b[i][3],
                 computed: false,
-                loc:loc()
+                loc:loc(),
+                range:range()
             }
         }
         return left;
@@ -271,7 +290,8 @@ MemberExpression =
         object: a,
         property:b,
         computed:true,
-        loc:loc()
+        loc:loc(),
+        range: range()
     } } /
     a:SimpleExpression "." b:SimpleExpression
     { return {
@@ -279,7 +299,8 @@ MemberExpression =
         object: a,
         property:b,
         computed:false,
-        loc:loc()
+        loc:loc(),
+        range:range()
     } }
     
 
@@ -290,7 +311,8 @@ ObjectExpression =
         var result = {
             type: "ObjectExpression",
             properties: [],
-            loc: loc()
+            loc: loc(),
+            range: range()
         };
 
         if ( f != null ) {
@@ -351,7 +373,9 @@ FunctionExpression =
         var result = {
             type: "FunctionExpression",
             body: f.body,
-            params: f.params
+            params: f.params,
+            loc:loc(),
+            range:range()
         }
 
         return result;
@@ -386,7 +410,8 @@ UnaryExpression =
             operator: ops[o],
             argument: e,
             prefix: true,
-            loc: loc()
+            loc: loc(),
+            range: range()
         }
     }
 
@@ -395,23 +420,24 @@ Identifier =
     { return {
         type: "Identifier",
         name: name,
-        loc: loc()
+        loc: loc(),
+        range: range()
     } }
 
 Literal = 
     a: ("nil" / "false" / "true") 
     {
         var values = {"nil": null, "false": false, "true": true} 
-        return { type: "Literal", value: values[a], loc: loc()}
+        return { type: "Literal", value: values[a], loc: loc(), range: range() }
 
     } / 
     b: Number
     {
-        return { type: "Literal", value: parseFloat(b), loc: loc() }
+        return { type: "Literal", value: parseFloat(b), loc: loc(), range: range()  }
 
     } /
     c: String
     {
-        return { type: "Literal", value: c, loc: loc() }
+        return { type: "Literal", value: c, loc: loc(), range: range()  }
 
     } 
