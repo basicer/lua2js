@@ -4,7 +4,7 @@
 
 start = ws? t:BlockStatement ws? { return t; }
 
-ws = [ \r\t\n]+
+ws = ([ \r\t\n] / ("--" ( [^\n]* "\n" / .* ) )) +
 
 BlockStatement =
     r:ReturnStatement
@@ -30,7 +30,7 @@ StatatementList =
 ReservedWord = "if" / "then" / "else" / "do" / "end" / "return" / "local" /
     "function" / "not" / "break" / "for" / "until" / binop / unop
 
-Name = !(ReservedWord ws?) a:$([a-zA-Z][a-zA-Z0-9_]*) { return a; }
+Name = !(ReservedWord ws?) a:$([a-zA-Z_][a-zA-Z0-9_]*) { return a; }
 Number = $([0-9]+("." [0-9]+)?)
 
 String =
