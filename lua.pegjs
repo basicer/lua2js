@@ -1,5 +1,6 @@
 {
   function loc() { return {start: offset(), end: offset() + text().length } }
+  function listHelper(a,b,c) { return [a].concat(b.map(function(b) { return b[c || 2]; })); }
 }
 
 start = ws? t:BlockStatement ws? { return t; }
@@ -24,7 +25,7 @@ StatatementList =
     {  
         if ( a === null ) return [];
         if ( b === null ) return a;
-        return [a].concat(b.map(function(b) { return b[1]; })) 
+        return listHelper(a,b,1);
     }
 
 ReservedWord = "if" / "then" / "else" / "do" / "end" / "return" / "local" /
@@ -40,6 +41,7 @@ String =
 Statement = 
     s: (";" /
     BreakStatement /
+    NumericFor /
     WhileStatement /
     IfStatement /
     ExpressionStatement / 
@@ -49,7 +51,47 @@ Statement =
     LocalFunction
     ) {  return s == ";" ? { type:"EmptyStatement" } : s; }
 
-DoEndGrouped = "do" $BlockStatement "end"
+DoEndGrouped = "do" b:BlockStatement "end" { return b }
+
+NumericFor =
+    "for" ws a:Identifier ws? "=" ws? b:Expression ws? "," ws? c:Expression d:( ws? "," Expression )? ws? "do" ws? body:BlockStatement ws? "end"
+    {
+        var amount = d == null ? {type: "Literal", value: 1 } : d[2];
+
+        var update = {
+            type: "AssignmentExpression",
+            left: a,
+            right: {type: "BinaryExpression", left: a, right: amount, operator: "+" },
+            operator: "=",
+            loc: loc()
+        };
+
+        var out = {
+            type: "ForStatement",
+            init: {
+                type: "VariableDeclaration",
+                declarations: [
+                    {
+                        type: "VariableDeclarator",
+                        id: a,
+                        init: b,
+                    }
+                ],
+                operator: "=",
+                kind: "var"
+            },
+            body: body,
+            update: update,
+            test: {
+                type: "BinaryExpression",
+                left: a,
+                right: c,
+                operator: "<="
+            }
+        };
+
+        return out;
+    }
 
 LocalAssingment =
     "local" ws expr:AssignmentExpression
@@ -146,27 +188,27 @@ Expression =
 
 
 unop = $("-" / "not" / "#")
-binop = $("+" / "-" / "==" / ">" / "<" / "~=" / ".." / "and" / "or" )
+binop = $("+" / "-" / "==" / ">" / "<" / "~=" / ".." / "and" / "or" / "*" / "/" / "%" )
 
 
 prefixexp =
     Identifier / funcname / '(' ws? e:Expression ws? ')' { return e; }
 
 CallExpression = 
-    who:funcname ws? a:args 
+    who:prefixexp ws? a:args 
     { return {
         type: "CallExpression",
         callee: who,
         arguments: a,
         loc: loc()
     } } /
-    who:funcname ws? b:ObjectExpression 
+    who:prefixexp ws? b:ObjectExpression 
     { return {
         type: "CallExpression",
         callee: who,
         arguments: [b]
     } } /
-    who:funcname ws? c:String
+    who:prefixexp ws? c:String
     { return {
         type: "CallExpression",
         callee: who,
@@ -197,7 +239,7 @@ funcname =
 args =
     "(" ws? a:Expression b:("," ws? e:Expression)* ")"
     {
-         return [a].concat(b.map(function(b) { return b[2]; })) 
+         return listHelper(a,b); 
     } /
     "(" ws? ")"
     {
@@ -312,7 +354,7 @@ funcbody =
 paramlist = 
     a:Identifier ws? b:("," ws? Identifier)*
     {
-        return [a].concat(b.map(function(b) { return b[2]; })) 
+        return listHelper(a,b); 
     } /
     ws? { 
         return [] 

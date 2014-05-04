@@ -45,6 +45,13 @@ tests = [
 		'end',
 		'return fastfib(10)'
 		], 55
+	],
+	[
+		[
+		'local total = 0',
+		'for i=1,20,3 do total = total + i end',
+		'return total'
+		], 70
 	]
 
 
