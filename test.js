@@ -15,7 +15,6 @@ function leval(src) {
 
 	var code = gen.generate(AST);
 	console.log(code);
-	console.log(JSON.stringify(AST));
 	return new Function(code);
 }
 
