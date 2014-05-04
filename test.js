@@ -19,7 +19,7 @@ function leval(src) {
 }
 
 tests = [
-	["20 return 10"  ,	 10],
+	["  return 10"  ,	 10],
 	["return 10"	 ,	 10],
 	["return 20     ",	 20],
 	[
@@ -32,6 +32,23 @@ tests = [
 	['if 0 then return "yum" else return "ouch" end', "ouch" ],
 	['add = function(a,b) return a+b end return add(2,5)', 7],
 	['function add(a,b) return a+b end return add(2,5)', 7],
+	[
+		[
+		'function fastfib(n)',
+		'fibs = {1,1}',
+	    'local i = 2',
+		'while i < n do',
+		'   i = i + 1',
+		'    local a = fibs[i-1]',
+		'    local b = fibs[i-2]',
+		'	fibs[i] = a + b',
+		'end',
+		'return fibs[n]',
+		'end',
+		'return fastfib(10)'
+		], 55
+	]
+
 
 ];
 
