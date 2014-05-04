@@ -212,7 +212,7 @@ CallExpression =
     { return {
         type: "CallExpression",
         callee: who,
-        arguments: {type: "Literal", value: c},
+        arguments: [{type: "Literal", value: c}],
         loc: loc()
     } } 
 
