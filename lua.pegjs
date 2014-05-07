@@ -30,9 +30,9 @@ StatatementList =
     }
 
 ReservedWord = "if" / "then" / "else" / "do" / "end" / "return" / "local" /
-    "function" / "not" / "break" / "for" / "until" / binop / unop
+    "function" / "not" / "break" / "for" / "until" / "function" / binop / unop
 
-Name = !(ReservedWord ws?) a:$([a-zA-Z_][a-zA-Z0-9_]*) { return a; }
+Name = !(ReservedWord (ws / !.)) a:$([a-zA-Z_][a-zA-Z0-9_]*) { return a; }
 Number = $([0-9]+("." [0-9]+)?)
 
 stringchar =
@@ -53,8 +53,8 @@ stringchar =
     $[^'"'] 
 
 String =
-    "\"" r:stringchar* "\"" { return r.join(''); } /
-    "'" r:stringchar* "'" { return r.join(''); }
+    "\"" r:(stringchar/"'") * "\"" { return r.join(''); } /
+    "'" r:(stringchar/'"') * "'" { return r.join(''); }
 
 Statement = 
     s: ( 
@@ -169,13 +169,22 @@ IfStatement =
     }
 
 ReturnStatement = 
-    "return" ws argument:Expression
-    { return {
-        type: "ReturnStatement",
-        argument: argument,
-        loc: loc(),
-        range: range()
-    } }
+    "return" ws argument:explist
+    { 
+        var arg;
+        if ( argument.length == 1 ) arg = argument[0];
+        else if ( argument.length > 1 ) arg = {
+            type: "ArrayExpression",
+            elements: argument
+        };
+
+        return {
+            type: "ReturnStatement",
+            argument: arg,
+            loc: loc(),
+            range: range()
+        }
+    } 
 
 WhileStatement =
     "while" ws test:Expression ws "do" ws body:BlockStatement ws "end" 
@@ -192,11 +201,11 @@ WhileStatement =
 
 
 SimpleExpression = (
-    CallExpression / Identifier /
-    ObjectExpression / FunctionExpression / UnaryExpression / Literal / ParenExpr )
+    FunctionExpression / CallExpression / Identifier /
+    ObjectExpression / UnaryExpression / Literal / ParenExpr )
 
 Expression = 
-    a:(MemberExpression/SimpleExpression/var) b:( ws? op:binop ws? Expression )?
+    FunctionExpression / CallExpression / a:(MemberExpression/SimpleExpression/var) b:( ws? op:binop ws? Expression )?
     {
         if ( b === null ) return a;
         var xop = b[1];
@@ -213,7 +222,7 @@ Expression =
             loc: loc(),
             range: range()
         };
-    } / CallExpression / AssignmentExpression
+    } / AssignmentExpression
 
 
 
@@ -222,7 +231,7 @@ binop = $("+" / "-" / "==" / ">" / "<" / "~=" / ".." / "and" / "or" / "*" / "/" 
 
 
 prefixexp =
-    Identifier / funcname / '(' ws? e:Expression ws? ')' { return e; }
+    funcname / '(' ws? e:Expression ws? ')' { return e; }
 
 CallExpression = 
     who:prefixexp ws? a:args 
@@ -271,10 +280,16 @@ funcname =
         return left;
     }
 
-args =
-    "(" ws? a:Expression b:("," ws? e:Expression)* ")"
+explist = 
+    a:Expression b:(ws? "," ws? e:Expression)*
     {
-         return listHelper(a,b); 
+         return listHelper(a,b,3); 
+    } 
+
+args =
+    "(" ws? a:explist ")"
+    {
+         return a; 
     } /
     "(" ws? ")"
     {
@@ -431,13 +446,18 @@ Literal =
         return { type: "Literal", value: values[a], loc: loc(), range: range() }
 
     } / 
+    b: Number [eE] c:$(("-" / "+")? [0-9]+)
+    {
+        return { type: "Literal", value: parseFloat(b) * Math.pow(10, parseInt(c)), loc: loc(), range: range()  }
+
+    } /
     b: Number
     {
         return { type: "Literal", value: parseFloat(b), loc: loc(), range: range()  }
 
     } /
-    c: String
+    s: String
     {
-        return { type: "Literal", value: c, loc: loc(), range: range()  }
+        return { type: "Literal", value: s, loc: loc(), range: range()  }
 
     } 
