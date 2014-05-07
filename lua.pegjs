@@ -21,6 +21,14 @@
     memberExpression: function(obj, prop, isComputed) { return wrapNode({ type:"MemberExpression", object: obj, property: prop, computed: isComputed }); }
   };
 
+  var i = function(n) { return { type: "Identifier", name: n}; }
+
+  var bhelper = {
+    luaOperator: function(op, a, b) {
+        return builder.callExpression(builder.memberExpression(i("__lua"), i(op)), b ? [a,b] : [a]);
+    }
+  }
+
 }
 
 start = ws? t:BlockStatement ws? { return t; }
@@ -388,6 +396,7 @@ UnaryExpression =
     o:unop ws? e:Expression
     { 
         var ops = {"not": "!", "-": "-", "#": "#" }
+        if ( o == "#" ) return bhelper.luaOperator("count", e);
         return { 
             type: "UnaryExpression",
             operator: ops[o],
