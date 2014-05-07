@@ -31,7 +31,7 @@ tests = [
          ' return "ouch"',
          'end'], "yum"
     ],
-    ['if 0 then return "yum" else return "ouch" end', "ouch" ],∏
+    ['if 0 then return "yum" else return "ouch" end', "ouch" ],
     ['add = function(a,b) return a+b end return add(2,5)', 7],
     ['function add(a,b) return a+b end return add(2,5)', 7],
     [
