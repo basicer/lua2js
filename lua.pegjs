@@ -15,6 +15,9 @@
     blockStatement: function(body) { return wrapNode({ type: "BlockStatement", body: body}); },
     callExpression: function(callee, args) { return wrapNode({ type: "CallExpression", callee: callee, arguments: args}); },
     emptyStatement: function() { return wrapNode({ type: "EmptyStatement" }); },
+    functionDeclaration: function(name, args, body, isGenerator, isExpression) {
+        return wrapNode({type: "FunctionDeclaration", id: name, params: args, body: body, generator: isGenerator, expression: isExpression });
+    },
     memberExpression: function(obj, prop, isComputed) { return wrapNode({ type:"MemberExpression", object: obj, property: prop, computed: isComputed }); }
   };
 
@@ -117,21 +120,27 @@ NumericFor =
     }
 
 LocalAssingment =
-    "local" ws expr:AssignmentExpression
-    { return {
-        type: "VariableDeclaration",
-        declarations: [
-            {
+    "local" ws left:namelist ws? "=" ws? right:explist
+    { 
+        var result = {
+            type: "VariableDeclaration",
+            declarations: [ ],
+            operator: "=",
+            kind: "var",
+            loc: loc(),
+            range: range()
+        }
+
+        for ( var i = 0; i < left.length; ++i ) {
+            result.declarations.push(            {
                 type: "VariableDeclarator",
-                id: expr.left,
-                init: expr.right,
-            }
-        ],
-        operator: "=",
-        kind: "var",
-        loc: loc(),
-        range: range()
-    } }
+                id: left[i],
+                init: right[i],
+            });
+        }
+
+        return result;
+    } 
 
 AssignmentExpression =
     left:var ws? "=" ws? right:Expression
@@ -257,6 +266,12 @@ explist =
          return listHelper(a,b,3); 
     } 
 
+namelist = 
+    a:Identifier b:(ws? "," ws? e:Identifier)*
+    {
+         return listHelper(a,b,3); 
+    } 
+
 args =
     "(" ws? a:explist ")"
     {
@@ -293,6 +308,7 @@ ObjectExpression =
 
         if ( f != null ) {
             if ( f.key === undefined ) f.key = {type: "Literal", value: 1};
+            f.kind = "init";
             result.properties.push(f);
         }
         
@@ -300,6 +316,7 @@ ObjectExpression =
         for ( var idx in s ) {
             var v = s[idx][3];
             if ( v.key === undefined ) v.key = {type: "Literal", value: 2 + parseInt(idx)};
+            v.kind = "init";
             result.properties.push(v);
         }
 
@@ -318,29 +335,19 @@ field =
     ws? "[" ws? k:Expression ws? "]" ws? "=" ws? v:Expression
     {
         return { key: k, value: v }; 
-    }/
+    }
 
 
 FunctionDeclaration =
     "function" ws? name:funcname ws? f:funcbody
     {
-        return {
-            type: "FunctionDeclaration",
-            id: name,
-            params: f.params,
-            body: f.body
-        }
+        return builder.functionDeclaration(name, f.params, f.body);
     }
 
 LocalFunction =
     "local" ws "function" ws? name:funcname ws? f:funcbody
     {
-        return {
-            type: "FunctionDeclaration",
-            id: name,
-            params: f.params,
-            body: f.body
-        }
+        return builder.functionDeclaration(name, f.params, f.body);
     }
 
 FunctionExpression = 
