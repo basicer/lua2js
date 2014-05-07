@@ -2,6 +2,22 @@
   function loc() { return {start: { line: line(), column: column() } } }
   function range() { return [offset(), offset() + text().length]; }
   function listHelper(a,b,c) { return [a].concat(b.map(function(b) { return b[c || 2]; })); }
+
+  function wrapNode(obj) {
+    obj.loc = loc();
+    obj.range = range();
+    return obj;
+  }
+
+  var builder = {
+    assignmentExpression: function(op, left, right) { return wrapNode({type: "AssignmentExpression", operator: op, left: left, right: right }); },
+    binaryExpression: function(op, left, right) { return wrapNode({type: "BinaryExpression", operator: op, left: left, right: right }); },
+    blockStatement: function(body) { return wrapNode({ type: "BlockStatement", body: body}); },
+    callExpression: function(callee, args) { return wrapNode({ type: "CallExpression", callee: callee, arguments: args}); },
+    emptyStatement: function() { return wrapNode({ type: "EmptyStatement" }); },
+    memberExpression: function(obj, prop, isComputed) { return wrapNode({ type:"MemberExpression", object: obj, property: prop, computed: isComputed }); }
+  };
+
 }
 
 start = ws? t:BlockStatement ws? { return t; }
@@ -10,16 +26,14 @@ ws = ([ \r\t\n] / ("--" ( [^\n]* "\n" / .* ) )) +
 
 BlockStatement =
     r:ReturnStatement
-    { return {
-        type: "BlockStatement",
-        body: [r]
-    } } /
+    {
+        return builder.blockStatement([r]) 
+    } /
     list:StatatementList ret:(ws ReturnStatement)?
-    { return {
-        type: "BlockStatement",
-        body: ret === null ? list : list.concat([ret[1]])
-    } } 
- 
+    {
+        return builder.blockStatement(ret === null ? list : list.concat([ret[1]])); 
+    } 
+
 
 StatatementList = 
     a:Statement? b:( ( ws? ";" ws? / ws )+ Statement )*
@@ -67,7 +81,7 @@ Statement =
     LocalAssingment /
     FunctionDeclaration /
     LocalFunction / $"" & (ws? ";")
-    ) {  return s == "" ? { type:"EmptyStatement" } : s; }
+    ) {  return s == "" ? builder.emptyStatement() : s; }
 
 DoEndGrouped = "do" b:BlockStatement "end" { return b }
 
@@ -76,14 +90,7 @@ NumericFor =
     {
         var amount = d == null ? {type: "Literal", value: 1 } : d[2];
 
-        var update = {
-            type: "AssignmentExpression",
-            left: a,
-            right: {type: "BinaryExpression", left: a, right: amount, operator: "+" },
-            operator: "=",
-            loc: loc(),
-            range: range()
-        };
+        var update = builder.assignmentExpression("=", a, builder.binaryExpression("+", a, amount));
 
         var out = {
             type: "ForStatement",
@@ -101,12 +108,7 @@ NumericFor =
             },
             body: body,
             update: update,
-            test: {
-                type: "BinaryExpression",
-                left: a,
-                right: c,
-                operator: "<="
-            },
+            test: builder.binaryExpression("<=", a, c),
             loc: loc(),
             range: range()
         };
@@ -133,14 +135,9 @@ LocalAssingment =
 
 AssignmentExpression =
     left:var ws? "=" ws? right:Expression
-    { return {
-        type: "AssignmentExpression",
-        left: left,
-        right: right,
-        operator: "=",
-        loc: loc(),
-        range: range()
-    } }
+    { 
+        return builder.assignmentExpression("=", left, right);
+    }
 
 BreakStatement = 
     "break"
@@ -214,14 +211,7 @@ Expression =
         else if ( xop == "or" ) xop = "||";
         else if ( xop == "and" ) xop = "&&";
 
-        return {
-            type: "BinaryExpression",
-            left: a,
-            right: b[3],
-            operator: xop,
-            loc: loc(),
-            range: range()
-        };
+        return builder.binaryExpression(xop, a, b[3]);
     } / AssignmentExpression
 
 
@@ -235,29 +225,17 @@ prefixexp =
 
 CallExpression = 
     who:prefixexp ws? a:args 
-    { return {
-        type: "CallExpression",
-        callee: who,
-        arguments: a,
-        loc: loc(),
-        range: range()
-    } } /
+    {
+        return builder.callExpression(who,a);
+    } /
     who:prefixexp ws? b:ObjectExpression 
-    { return {
-        type: "CallExpression",
-        callee: who,
-        arguments: [b],
-        loc: loc(),
-        range: range()
-    } } /
+    {
+        return builder.callExpression(who, [b]);
+    } /
     who:prefixexp ws? c:String
-    { return {
-        type: "CallExpression",
-        callee: who,
-        arguments: [{type: "Literal", value: c}],
-        loc: loc(),
-        range: range()
-    } } 
+    {
+        return builder.callExpression(who, [{type: "Literal", value: c}]);
+    } 
 
 ParenExpr = "(" ws? a:Expression ws? ")" { return a; }
 
@@ -268,14 +246,7 @@ funcname =
         if ( b.length == 0 ) return a;
         var left = a;
         for ( var i in b ) {
-            left = {
-                type: "MemberExpression",
-                object: left,
-                property: b[i][3],
-                computed: false,
-                loc:loc(),
-                range:range()
-            }
+            left = builder.memberExpression(left, b[i][3], false);
         }
         return left;
     }
@@ -300,23 +271,13 @@ var = MemberExpression / Identifier
 
 MemberExpression = 
     a:SimpleExpression "[" ws? b:Expression ws? "]"
-    { return {
-        type: "MemberExpression",
-        object: a,
-        property:b,
-        computed:true,
-        loc:loc(),
-        range: range()
-    } } /
+    { 
+        return builder.memberExpression(a,b,true);
+    } /
     a:SimpleExpression "." b:SimpleExpression
-    { return {
-        type: "MemberExpression",
-        object: a,
-        property:b,
-        computed:false,
-        loc:loc(),
-        range:range()
-    } }
+    {
+        return builder.memberExpression(a,b,false);
+    }
     
 
 
