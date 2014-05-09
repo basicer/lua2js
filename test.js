@@ -68,9 +68,30 @@ function makenv() {
             stdout = stdout + s + "\n";
             console.log(s); 
         };
-
+        env.math = Math;
         env.getStdOut = function() { return stdout; }
-        
+        env.__lua = {
+            count: function(what) {
+                return what.length;
+            }
+        };
+        env.io = {
+            write: function(w) { return env.print(w); }
+        };
+
+        env.string = {
+            format: function(format, etc) {
+                var arg = arguments;
+                var i = 1;
+                return format.replace(/%([0-9.]+)?([%sf])/g, function (m) { 
+                    if ( m[2] == "%" ) return "%";
+                    else if ( m[2] == "s") return arg[i++];
+                    else if ( m[2] == "f" ) return arg[i++].toFixed(parseFloat(m[1]) || 6);
+                    else return arg[i++]; 
+                });
+            }
+        }
+
         return env;
     })("");
 

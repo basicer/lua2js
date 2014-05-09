@@ -2,10 +2,14 @@
   function loc() { return {start: { line: line(), column: column() } } }
   function range() { return [offset(), offset() + text().length]; }
   function listHelper(a,b,c) { return [a].concat(b.map(function(b) { return b[c || 2]; })); }
+  function opt(name, def) { return options[name] === undefined ? def : options[name] }
 
-  function wrapNode(obj) {
+  function wrapNode(obj, hasScope) {
+    hasScope = !!hasScope 
     obj.loc = loc();
     obj.range = range();
+    obj.hasScope = hasScope;
+
     return obj;
   }
 
@@ -18,14 +22,95 @@
     functionDeclaration: function(name, args, body, isGenerator, isExpression) {
         return wrapNode({type: "FunctionDeclaration", id: name, params: args, body: body, generator: isGenerator, expression: isExpression });
     },
-    memberExpression: function(obj, prop, isComputed) { return wrapNode({ type:"MemberExpression", object: obj, property: prop, computed: isComputed }); }
+    memberExpression: function(obj, prop, isComputed) { return wrapNode({ type:"MemberExpression", object: obj, property: prop, computed: isComputed }); },
+    variableDeclaration: function(kind, decls) { return { type: "VariableDeclaration", declarations: decls, kind: opt("forceVar", true) ? "var" : kind } },
+    functionExpression: function(name, args, body) { return { type: "FunctionExpression", body: body, params: args } }
   };
 
   var i = function(n) { return { type: "Identifier", name: n}; }
+  var tmpVarCtr = 0;
 
   var bhelper = {
-    luaOperator: function(op, a, b) {
-        return builder.callExpression(builder.memberExpression(i("__lua"), i(op)), b ? [a,b] : [a]);
+    tempName: function() {
+        return i("__lua$tmpvar$" + (++tmpVarCtr));
+    },
+    tempVar: function(exp) {
+        return { type: "VariableDeclarator", id: bhelper.tempName(), init: exp };
+    },
+    assign: function(target, exp) {
+        return {
+            type: "ExpressionStatement",
+            expression: builder.assignmentExpression("=", target, exp)
+        };
+    },
+    encloseDecls: function(body /*, decls...*/) {
+        var decls = Array.prototype.slice.call(arguments, 1);
+        var vals = [];
+        var names = [];
+        for ( var k in decls ) {
+            var v = decls[k];
+            vals.push(v.init);
+            names.push(v.id);
+        }
+        return {
+            expression: builder.callExpression(
+                builder.functionExpression(null, names, builder.blockStatement(body)),
+                vals
+            ),
+            type: "ExpressionStatement"
+        }
+    },
+    encloseDeclsUnpack: function(body, names, explist) {
+        return {
+            expression: builder.callExpression(
+                builder.memberExpression(
+                    builder.functionExpression(null, names, builder.blockStatement(body)),
+                    i("apply")
+                ),
+                [{type: "Literal", value: null}, bhelper.luaOperatorA("expandReturnValues", explist)]
+            ),
+            type: "ExpressionStatement"
+        }
+    },
+    luaOperator: function(op /*, args */) {
+        return builder.callExpression(
+            builder.memberExpression(i("__lua"), i(op)), 
+            Array.prototype.slice.call(arguments, 1)
+        );
+    },
+    luaOperatorA: function(op, args) {
+        return builder.callExpression(
+            builder.memberExpression(i("__lua"), i(op)), 
+            args
+        );
+    },
+    binaryExpression: function(op, a, b) {
+        if ( opt("luaOperators", false) ) {
+            var map = {"+": "add", "-": "sub", "*": "mul", "/": "div", "^": "pow", "%":"mod",
+                "..": "concat", "==": "eq", "<": "lt", "<=": "lte", "~=": "ne"};
+            return bhelper.luaOperator(map[op], a, b);
+        } else {
+
+            if ( op == "~=" ) xop = "!=";
+            else if ( op == ".." ) op = "+";
+            else if ( op == "or" ) op = "||";
+            else if ( op == "and" ) op = "&&";
+
+            return builder.binaryExpression(op, a, b);
+        }
+    },
+    callExpression: function(callee, args) {
+        if ( opt("luaCalls", false) ) {
+            return bhelper.luaOperator.apply(bhelper, ["call", callee].concat(args));
+        } else {
+            return builder.callExpression(callee, args);
+        }
+    },
+    memberExpression: function(obj, prop, isComputed) {
+        if ( opt("luaOperators", false) && !isComputed ) {
+            return bhelper.luaOperator("index", obj, prop);
+        }
+        return builder.memberExpression(obj, prop, isComputed);
     }
   }
 
@@ -85,6 +170,7 @@ Statement =
     s: ( 
     BreakStatement /
     NumericFor /
+    ForEach /
     WhileStatement /
     IfStatement /
     ExpressionStatement / 
@@ -100,44 +186,64 @@ NumericFor =
     "for" ws a:Identifier ws? "=" ws? b:Expression ws? "," ws? c:Expression d:( ws? "," Expression )? ws? "do" ws? body:BlockStatement ws? "end"
     {
         var amount = d == null ? {type: "Literal", value: 1 } : d[2];
+        
+        var updateBy = bhelper.tempVar(amount);
+        var testValue = bhelper.tempVar(c);
 
-        var update = builder.assignmentExpression("=", a, builder.binaryExpression("+", a, amount));
+        var update = builder.assignmentExpression("=", a, bhelper.binaryExpression("+", a, updateBy.id));
+
 
         var out = {
             type: "ForStatement",
-            init: {
-                type: "VariableDeclaration",
-                declarations: [
-                    {
-                        type: "VariableDeclarator",
-                        id: a,
-                        init: b,
-                    }
-                ],
-                operator: "=",
-                kind: "var"
-            },
+            init: builder.variableDeclaration("let", [
+                {
+                    type: "VariableDeclarator",
+                    id: a,
+                    init: b,
+                }
+            ]),
             body: body,
             update: update,
-            test: builder.binaryExpression("<=", a, c),
+            test: bhelper.binaryExpression("<=", a, testValue.id),
             loc: loc(),
             range: range()
         };
 
-        return out;
+        return bhelper.encloseDecls([out], updateBy, testValue);
+    }
+
+ForEach =
+    "for" ws a:namelist ws "in" ws b:explist ws "do" ws? c:BlockStatement ws? "end"
+    {
+        var statements = [];
+        var nil = {type: "Literal", value: null };
+
+
+        var iterator = bhelper.tempName();
+        var context = bhelper.tempName();
+        var curent = bhelper.tempName();
+
+        var v1 = a[0];
+
+        statements.push({
+            type: "WhileStatement",
+            test: {type: "Literal", value: true},
+            body: builder.blockStatement([
+            bhelper.assign(v1, builder.callExpression(iterator,[context, curent])),
+            { type: "IfStatement", test: builder.binaryExpression("===", v1, nil), consequent: {type: "BreakStatement" } },
+            bhelper.assign(curent, v1),
+            bhelper.encloseDecls(c.body) //TODO: We could just unpack c here.
+
+            ])
+        });
+
+        return bhelper.encloseDeclsUnpack(statements, [iterator, context, curent], b);
     }
 
 LocalAssingment =
     "local" ws left:namelist ws? "=" ws? right:explist
     { 
-        var result = {
-            type: "VariableDeclaration",
-            declarations: [ ],
-            operator: "=",
-            kind: "var",
-            loc: loc(),
-            range: range()
-        }
+        var result = builder.variableDeclaration("let", []);
 
         for ( var i = 0; i < left.length; ++i ) {
             result.declarations.push(            {
@@ -186,12 +292,16 @@ ReturnStatement =
     "return" ws argument:explist
     { 
         var arg;
-        if ( argument.length == 1 ) arg = argument[0];
-        else if ( argument.length > 1 ) arg = {
-            type: "ArrayExpression",
-            elements: argument
-        };
 
+
+        if ( argument.length == 1 ) arg = argument[0];
+        else if ( argument.length > 1 ) {
+            if ( opt('decorateLuaObjects', false) ) arg = bhelper.luaOperatorA("makeMultiReturn", argument);
+            else  arg = {
+                type: "ArrayExpression",
+                elements: argument
+            };            
+        }
         return {
             type: "ReturnStatement",
             argument: arg,
@@ -223,12 +333,8 @@ Expression =
     {
         if ( b === null ) return a;
         var xop = b[1];
-        if ( xop == "~=" ) xop = "!=";
-        else if ( xop == ".." ) xop = "+";
-        else if ( xop == "or" ) xop = "||";
-        else if ( xop == "and" ) xop = "&&";
 
-        return builder.binaryExpression(xop, a, b[3]);
+        return bhelper.binaryExpression(xop, a, b[3]);
     } / AssignmentExpression
 
 
@@ -243,15 +349,15 @@ prefixexp =
 CallExpression = 
     who:prefixexp ws? a:args 
     {
-        return builder.callExpression(who,a);
+        return bhelper.callExpression(who,a);
     } /
     who:prefixexp ws? b:ObjectExpression 
     {
-        return builder.callExpression(who, [b]);
+        return bhelper.callExpression(who, [b]);
     } /
     who:prefixexp ws? c:String
     {
-        return builder.callExpression(who, [{type: "Literal", value: c}]);
+        return bhelper.callExpression(who, [{type: "Literal", value: c}]);
     } 
 
 ParenExpr = "(" ws? a:Expression ws? ")" { return a; }
@@ -314,13 +420,13 @@ ObjectExpression =
             range: range()
         };
 
-        if ( f != null ) {
+        if ( f !== null ) {
             if ( f.key === undefined ) f.key = {type: "Literal", value: 1};
             f.kind = "init";
             result.properties.push(f);
-        }
+        } 
         
-        if ( s != null )
+        if ( s )
         for ( var idx in s ) {
             var v = s[idx][3];
             if ( v.key === undefined ) v.key = {type: "Literal", value: 2 + parseInt(idx)};
@@ -328,7 +434,8 @@ ObjectExpression =
             result.properties.push(v);
         }
 
-        return result;
+        if ( opt('decorateLuaObjects', false) ) return bhelper.luaOperator("makeTable", result);
+        else return result;
     }
 
 field =
