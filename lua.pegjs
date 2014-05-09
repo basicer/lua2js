@@ -283,7 +283,7 @@ LocalAssingment =
     { 
         var result = builder.variableDeclaration("let", []);
 
-        if ( false || ( left.length < 2 && right.length < 2 )) { 
+        if ( !opt('decorateLuaObjects', false) || ( left.length < 2 && right.length < 2 )) { 
 
             for ( var i = 0; i < left.length; ++i ) {
                 result.declarations.push(            {
