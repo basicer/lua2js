@@ -1,4 +1,4 @@
-__lua = (function() {
+this.__lua = (function() {
 
 	function add(a,b) { return a + b; }
 
@@ -13,7 +13,17 @@ __lua = (function() {
 	function lte(a,b) { return a <= b; }
 	function lt(a,b) { return a < b; }
 
+	function ne(a,b) { return a !== b; }
+	function eq(a,b) { return a === b; }
+
+	function count(a) { return a.length; }
+
+	function and(a,b) { return a && b; }
+	function or(a,b) { return a || b; }
+
 	function call(what /*, args... */ ) {
+
+
 		return what.apply(null, Array.prototype.slice.call(arguments, 1));
 	}
 
@@ -26,7 +36,7 @@ __lua = (function() {
 	function makeTable(t) {
 		var out = Object.create(LuaTable.prototype, {});
 		for ( var k in t ) {
-			out[k] = t;
+			out[k] = t[k];
 		}
 		return out;
 	}
@@ -48,7 +58,10 @@ __lua = (function() {
 		for ( var idx in arguments ) {
 			var v = arguments[idx];
 			if ( v instanceof LuaReturnValues ) {
-				for ( var i in v.values ) out.push(v.values[i]);
+				for ( var i in v.values ) {
+					out.push(v.values[i]);
+					if ( idx < arguments.length - 1) break;
+				}
 			} else {
 				out.push(v);
 			}
@@ -65,10 +78,15 @@ __lua = (function() {
 		call: call,
 		lte: lte,
 		lt: lt,
+		ne: ne,
+		eq: eq,
 		concat: concat,
 		makeTable: makeTable,
 		expandReturnValues: expandReturnValues,
-		makeMultiReturn: makeMultiReturn
+		makeMultiReturn: makeMultiReturn,
+		count: count,
+		and: and,
+		or: or
 	}
 
 

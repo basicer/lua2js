@@ -11,13 +11,13 @@ var exec = require('child_process').exec;
 function leval(src) {
     var AST;
     try { 
-        AST = parser.parse(src);
+        AST = parser.parse(src, {forceVar: !('function' === typeof Map), decorateLuaObjects: true, luaCalls: true, luaOperators: true });
     } catch ( e ) {
         console.log(e);
         return e.toString();
     }
 
-    return function(code) { return function() { return "(function() " + code + ")()"; } }(gen.generate(AST));
+    return function(code) { return function() { return "\"use strict\"; (function() " + code + ")()"; } }(gen.generate(AST));
 }
 
 tests = [
@@ -60,7 +60,7 @@ tests = [
 ];
 
 function makenv() {
-
+    var goodies = require("./public/stdlib.js");
     return (function(stdout) {
         var env = {};
         env.print = function() {
@@ -70,11 +70,7 @@ function makenv() {
         };
         env.math = Math;
         env.getStdOut = function() { return stdout; }
-        env.__lua = {
-            count: function(what) {
-                return what.length;
-            }
-        };
+        env.__lua = goodies.__lua;
         env.io = {
             write: function(w) { return env.print(w); }
         };
@@ -130,6 +126,7 @@ fs.readdirSync("./lua-tests").forEach(function(f) {
         test.ok(typeof(v) == "function", v);
         if ( typeof(v) == "function" ) {
             (function(env) {
+                console.log(v());
                 var a = vm.runInNewContext(v(), env, "vm");     
 
                 exec('lua ./lua-tests/' + f, function(err, stdout, stderr) {
@@ -138,8 +135,10 @@ fs.readdirSync("./lua-tests").forEach(function(f) {
                     test.done();
                 });
             })(makenv());
+        } else {
+            test.ok(false, "Coudnt parse:" + v);
+            test.done();
         }
-        else test.ok(false, "Coudnt parse.");
     };
 
 });
