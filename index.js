@@ -10,7 +10,7 @@ var parser = peg.buildParser(lang);
 
 var AST;
 try { 
-    AST = parser.parse(fs.readFileSync("test.lua").toString());
+    AST = parser.parse(fs.readFileSync("lua-tests/nbody.lua").toString(), {forceVar: true});
 } catch ( e ) {
     console.dir(e);
     return;

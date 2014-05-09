@@ -1,2 +1,1 @@
-while true do
-end
+local pooja = {}
