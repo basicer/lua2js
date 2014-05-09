@@ -87,7 +87,9 @@
     binaryExpression: function(op, a, b) {
         if ( opt("luaOperators", false) ) {
             var map = {"+": "add", "-": "sub", "*": "mul", "/": "div", "^": "pow", "%":"mod",
-                "..": "concat", "==": "eq", "<": "lt", "<=": "lte", "~=": "ne"};
+                "..": "concat", "==": "eq", "<": "lt", "<=": "lte", "~=": "ne",
+                "and": "and", "or": "or"
+            };
             return bhelper.luaOperator(map[op], a, b);
         } else {
 
@@ -139,7 +141,7 @@ StatatementList =
         return listHelper(a,b,1);
     }
 
-ReservedWord = "if" / "then" / "else" / "do" / "end" / "return" / "local" /
+ReservedWord = "if" / "then" / "else" / "do" / "end" / "return" / "local" / "nil" / "true" / "false"
     "function" / "not" / "break" / "for" / "until" / "function" / binop / unop
 
 Name = !(ReservedWord (ws / !.)) a:$([a-zA-Z_][a-zA-Z0-9_]*) { return a; }
@@ -325,8 +327,8 @@ WhileStatement =
 
 
 SimpleExpression = (
-    FunctionExpression / CallExpression / Identifier /
-    ObjectExpression / UnaryExpression / Literal / ParenExpr )
+    Literal / FunctionExpression / CallExpression / Identifier /
+    ObjectExpression / UnaryExpression / ParenExpr )
 
 Expression = 
     FunctionExpression / CallExpression / a:(MemberExpression/SimpleExpression/var) b:( ws? op:binop ws? Expression )?
