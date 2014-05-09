@@ -17,7 +17,7 @@ function leval(src) {
         return e.toString();
     }
 
-    return function(code) { return function() { return "\"use strict\"; (function() " + code + ")()"; } }(gen.generate(AST));
+    return function(code) { return function() { return "(function() " + code + ")()"; } }(gen.generate(AST));
 }
 
 tests = [
