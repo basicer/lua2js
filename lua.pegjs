@@ -1,6 +1,6 @@
 {
-  function loc() { return {start: { line: line(), column: column() } } }
-  function range() { return [offset(), offset() + text().length]; }
+  function loc() { return undefined && {start: { line: line(), column: column() } } }
+  function range() { return undefined && [offset(), offset() + text().length]; }
   function listHelper(a,b,c) { return [a].concat(b.map(function(b) { return b[c || 2]; })); }
   function opt(name, def) { return options[name] === undefined ? def : options[name] }
 
@@ -71,6 +71,18 @@
             ),
             type: "ExpressionStatement"
         }
+    },
+    bulkAssign: function(names, explist) {
+        var temps = [];
+        var body = [];
+        for ( var i = 0; i < names.length; ++i ) {
+            temps[i] = bhelper.tempName();
+            body[i] = bhelper.assign(names[i], temps[i]);
+        }
+
+        var out = bhelper.encloseDeclsUnpack(body, temps, explist);
+        console.log(JSON.stringify(out.expression));
+        return out;
     },
     luaOperator: function(op /*, args */) {
         return builder.callExpression(
@@ -227,11 +239,25 @@ ForEach =
 
         var v1 = a[0];
 
+        var varlist = [];
+        for ( var idx in a ) {
+            varlist.push({type: "VariableDeclarator", id: a[idx] });
+        }
+
+        var call = builder.callExpression(iterator,[context, curent]);
+        var assign;
+        if ( a.length > 1 ) {
+            assign = bhelper.bulkAssign(a, [call])
+        } else {
+            assign = bhelper.assign(v1, call);
+        }
+
+        statements.push(builder.variableDeclaration("let", varlist));
         statements.push({
             type: "WhileStatement",
             test: {type: "Literal", value: true},
             body: builder.blockStatement([
-            bhelper.assign(v1, builder.callExpression(iterator,[context, curent])),
+            assign,
             { type: "IfStatement", test: builder.binaryExpression("===", v1, nil), consequent: {type: "BreakStatement" } },
             bhelper.assign(curent, v1),
             bhelper.encloseDecls(c.body) //TODO: We could just unpack c here.
