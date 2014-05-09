@@ -21,6 +21,8 @@ this.__lua = (function() {
 	function and(a,b) { return a && b; }
 	function or(a,b) { return a || b; }
 
+	function div(a,b) { return a / b; }
+
 	function call(what /*, args... */ ) {
 
 
@@ -75,6 +77,7 @@ this.__lua = (function() {
 		add: add,
 		sub: sub,
 		mul: mul,
+		div: div,
 		call: call,
 		lte: lte,
 		lt: lt,
@@ -93,3 +96,5 @@ this.__lua = (function() {
 })();
 
 function print() { console.log.apply(console, arguments); }
+
+this.math = Math;
