@@ -4,6 +4,16 @@
   function listHelper(a,b,c) { return [a].concat(b.map(function(b) { return b[c || 2]; })); }
   function opt(name, def) { return options[name] === undefined ? def : options[name] }
 
+  function expandMultiStatements(list) {
+    var out = [];
+    for ( var i = 0; i < list.length; ++i ) {
+        var value = list[i];
+        if (value instanceof Array) out = out.concat(value);
+        else out.push(value);
+    }
+    return out;
+  }
+
   function wrapNode(obj, hasScope) {
     hasScope = !!hasScope 
     obj.loc = loc();
@@ -81,7 +91,6 @@
         }
 
         var out = bhelper.encloseDeclsUnpack(body, temps, explist);
-        console.log(JSON.stringify(out.expression));
         return out;
     },
     luaOperator: function(op /*, args */) {
@@ -141,6 +150,7 @@ BlockStatement =
     } /
     list:StatatementList ret:(ws ReturnStatement)?
     {
+        list = expandMultiStatements(list);
         return builder.blockStatement(ret === null ? list : list.concat([ret[1]])); 
     } 
 
@@ -273,16 +283,41 @@ LocalAssingment =
     { 
         var result = builder.variableDeclaration("let", []);
 
+        if ( false || ( left.length < 2 && right.length < 2 )) { 
+
+            for ( var i = 0; i < left.length; ++i ) {
+                result.declarations.push(            {
+                    type: "VariableDeclarator",
+                    id: left[i],
+                    init: right[i],
+                });
+            }
+
+            return result;
+        } else {
+            var assign = bhelper.bulkAssign(left, right)
+            for ( var i = 0; i < left.length; ++i ) {
+                result.declarations.push({
+                    type: "VariableDeclarator",
+                    id: left[i]
+                });
+            }
+         
+            return [result, assign];   
+        }
+    
+    }/
+    "local" ws left:namelist
+    {
+        var result = builder.variableDeclaration("let", []);
         for ( var i = 0; i < left.length; ++i ) {
-            result.declarations.push(            {
+            result.declarations.push({
                 type: "VariableDeclarator",
-                id: left[i],
-                init: right[i],
+                id: left[i]
             });
         }
-
-        return result;
-    } 
+        return result;  
+    }
 
 AssignmentExpression =
     left:var ws? "=" ws? right:Expression
