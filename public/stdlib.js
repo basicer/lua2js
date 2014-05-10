@@ -26,7 +26,7 @@ this.__lua = (function() {
 	function call(what /*, args... */ ) {
 
 
-		return what.apply(null, Array.prototype.slice.call(arguments, 1));
+		return what.apply(null, expand(Array.prototype.slice.call(arguments, 1)));
 	}
 
 	function LuaTable() {
@@ -54,21 +54,24 @@ this.__lua = (function() {
 		return out;
 	}
 
-
-	function expandReturnValues() {
+	function expand(what) {
 		var out = [];
-		for ( var idx in arguments ) {
-			var v = arguments[idx];
+		for ( var idx in what ) {
+			var v = what[idx];
 			if ( v instanceof LuaReturnValues ) {
 				for ( var i in v.values ) {
 					out.push(v.values[i]);
-					if ( idx < arguments.length - 1) break;
+					if ( idx < what.length - 1) break;
 				}
 			} else {
 				out.push(v);
 			}
 		}
 		return out;
+	}
+
+	function expandReturnValues() {
+		return expand(arguments);
 	}
 
 
