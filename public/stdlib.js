@@ -23,10 +23,10 @@ this.__lua = (function() {
 
 	function div(a,b) { return a / b; }
 
-	function call(what /*, args... */ ) {
+	function call(flags, what, that /*, args... */ ) {
 
 
-		return what.apply(null, expand(Array.prototype.slice.call(arguments, 1)));
+		return what.apply(that, expand(Array.prototype.slice.call(arguments, 3)));
 	}
 
 	function LuaTable() {
