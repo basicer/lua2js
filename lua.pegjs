@@ -423,7 +423,8 @@ SimpleExpression = (
     ObjectExpression / UnaryExpression / ParenExpr )
 
 Expression = 
-    FunctionExpression / CallExpression / a:(MemberExpression/SimpleExpression/var) b:( ws? op:binop ws? (MemberExpression/SimpleExpression) )*
+    AssignmentExpression /
+    a:(FunctionExpression/CallExpression/MemberExpression/SimpleExpression/var) b:( ws? op:binop ws? (MemberExpression/SimpleExpression) )*
     {
         if ( b === null ) return a;
         var tokens = [];
@@ -434,7 +435,7 @@ Expression =
         }
 
         return precedenceClimber(tokens, a, 1);
-    } / AssignmentExpression
+    }
 
 
 
