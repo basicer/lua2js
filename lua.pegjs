@@ -155,7 +155,10 @@
     },
     callExpression: function(callee, args) {
         if ( opt("luaCalls", false) ) {
-            return bhelper.luaOperator.apply(bhelper, ["call", callee].concat(args));
+            var that = {"type":"Literal", "value": null};
+            if ( callee.type == "MemberExpression" ) that = callee.object;
+
+            return bhelper.luaOperator.apply(bhelper, ["call", {"type": "Literal", "value": 0}, callee, that].concat(args));
         } else {
             return builder.callExpression(callee, args);
         }
