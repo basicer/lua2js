@@ -92,12 +92,21 @@ this.__lua = (function() {
 		makeMultiReturn: makeMultiReturn,
 		count: count,
 		and: and,
-		or: or
+		or: or,
+		expand: expand
 	}
 
 
 })();
 
 function print() { console.log.apply(console, arguments); }
-
+function unpack(table) {
+	var array = [];
+	var idx = 1;
+	while ( table[idx] !== undefined ) {
+		array.push(table[idx]);
+		++idx;
+	}
+	return __lua.makeMultiReturn.apply(__lua, array);
+}
 this.math = Math;
