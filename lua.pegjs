@@ -251,10 +251,11 @@ Statement =
     DoEndGrouped /
     LocalAssingment /
     FunctionDeclaration /
-    LocalFunction / $"" & (ws? ";")
+    LocalFunction /
+    DoEndGrouped / $"" & (ws? ";")
     ) {  return s == "" ? builder.emptyStatement() : s; }
 
-DoEndGrouped = "do" b:BlockStatement "end" { return b }
+DoEndGrouped = "do" ws? b:BlockStatement ws? "end" { return b }
 
 NumericFor =
     "for" ws a:Identifier ws? "=" ws? b:Expression ws? "," ws? c:Expression d:( ws? "," Expression )? ws? "do" ws? body:BlockStatement ws? "end"
