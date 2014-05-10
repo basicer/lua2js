@@ -65,7 +65,8 @@
     },
     memberExpression: function(obj, prop, isComputed) { return wrapNode({ type:"MemberExpression", object: obj, property: prop, isComputed: isComputed }); },
     variableDeclaration: function(kind, decls) { return { type: "VariableDeclaration", declarations: decls, kind: opt("forceVar", true) ? "var" : kind } },
-    functionExpression: function(name, args, body) { return { type: "FunctionExpression", body: body, params: args } }
+    functionExpression: function(name, args, body) { return { type: "FunctionExpression", body: body, params: args } },
+    returnStatement: function(arg) { return {type: "ReturnStatement", argument: arg}; }
   };
 
   var i = function(n) { return { type: "Identifier", name: n}; }
@@ -134,16 +135,20 @@
         return out;
     },
     luaOperator: function(op /*, args */) {
-        return builder.callExpression(
+        var o = builder.callExpression(
             builder.memberExpression(i("__lua"), i(op)), 
             Array.prototype.slice.call(arguments, 1)
         );
+        o.internal = true;
+        return o;
     },
     luaOperatorA: function(op, args) {
-        return builder.callExpression(
+        var o = builder.callExpression(
             builder.memberExpression(i("__lua"), i(op)), 
             args
         );
+        o.internal = true;
+        return o;
     },
     binaryExpression: function(op, a, b) {
         if ( opt("luaOperators", false) ) {
@@ -164,12 +169,36 @@
     },
     callExpression: function(callee, args) {
         if ( opt("luaCalls", false) ) {
-            var that = {"type":"Literal", "value": null};
-            if ( callee.type == "MemberExpression" ) that = callee.object;
+            var that = {"type": "ThisExpression" };
+            if ( callee.type == "MemberExpression" ) that = {"type":"Literal", "value": null};
             var flags = 0;
-            if ( callee.selfSuggar ) flags = flags | 1;
+            if ( callee.selfSuggar ) {
+                flags = flags | 1;
+            }
 
-            return bhelper.luaOperator.apply(bhelper, ["call", {"type": "Literal", "value": flags}, bhelper.translateExpressionIfNeeded(callee), that].concat(args));
+            var flagso = {"type": "Literal", "value": flags};
+            
+            if ( callee.selfSuggar ) {
+                if ( callee.object.type != "Identifier" ) {
+                    //Dont bother making a function if we are just an identifer.
+                    var rcallee = bhelper.translateExpressionIfNeeded(callee)
+                    return bhelper.luaOperator.apply(bhelper, ["call", flagso , rcallee, callee.object].concat(args));
+
+                } else {
+                    var tmp = bhelper.tempVar(callee.object);
+                    
+                    var rexpr = builder.memberExpression(tmp.id, callee.property, callee.isComputed);
+                    var rcallee = bhelper.translateExpressionIfNeeded(rexpr)
+                    return bhelper.encloseDecls([
+                        builder.returnStatement(
+                            bhelper.luaOperator.apply(bhelper, ["call", flagso, rcallee, tmp.id].concat(args))
+                        )
+                    ], tmp).expression;
+                }
+            } else {
+                var rcallee = bhelper.translateExpressionIfNeeded(callee)
+                return bhelper.luaOperator.apply(bhelper, ["call", flagso , rcallee, that].concat(args));
+            }
         } else {
             return builder.callExpression(callee, args);
         }
@@ -381,7 +410,8 @@ LocalAssingment =
 AssignmentExpression =
     left:varlist ws? "=" ws? right:explist
     { 
-        return bhelper.bulkAssign(left, right).expression;
+        if ( left.length < 2 ) return bhelper.assign(left[0], right[0]).expression;
+        else return bhelper.bulkAssign(left, right).expression;
     }
 
 BreakStatement = 
@@ -481,7 +511,10 @@ CallExpression =
         var left = who
         for ( var idx = 0; idx < a.length; ++idx ) {
             var v = a[idx];
-            if ( v[1] != null ) left = builder.memberExpression(left, v[1][1], false);
+            if ( v[1] != null ) {
+                left = builder.memberExpression(left, v[1][1], false);
+                left.selfSuggar = true;
+            }
             left = bhelper.callExpression(left,v[2]);
         }
         return left;
