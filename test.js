@@ -63,14 +63,13 @@ function makenv() {
     var goodies = require("./public/stdlib.js");
     return (function(stdout) {
         var env = {};
+        for ( var i in goodies ) env[i] = goodies[i];
         env.print = function() {
             var s = Array.prototype.slice.call(arguments).join("\t"); 
             stdout = stdout + s + "\n";
             console.log(s); 
         };
-        env.math = Math;
         env.getStdOut = function() { return stdout; }
-        env.__lua = goodies.__lua;
         env.io = {
             write: function(w) { return env.print(w); }
         };

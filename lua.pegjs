@@ -139,7 +139,7 @@
     binaryExpression: function(op, a, b) {
         if ( opt("luaOperators", false) ) {
             var map = {"+": "add", "-": "sub", "*": "mul", "/": "div", "^": "pow", "%":"mod",
-                "..": "concat", "==": "eq", "<": "lt", "<=": "lte", "~=": "ne",
+                "..": "concat", "==": "eq", "<": "lt", "<=": "lte", ">": "gt", ">=": "gte", "~=": "ne",
                 "and": "and", "or": "or"
             };
             return bhelper.luaOperator(map[op], a, b);
@@ -157,8 +157,10 @@
         if ( opt("luaCalls", false) ) {
             var that = {"type":"Literal", "value": null};
             if ( callee.type == "MemberExpression" ) that = callee.object;
+            var flags = 0;
+            if ( callee.selfSuggar ) flags = flags | 1;
 
-            return bhelper.luaOperator.apply(bhelper, ["call", {"type": "Literal", "value": 0}, callee, that].concat(args));
+            return bhelper.luaOperator.apply(bhelper, ["call", {"type": "Literal", "value": flags}, bhelper.translateExpressionIfNeeded(callee), that].concat(args));
         } else {
             return builder.callExpression(callee, args);
         }
@@ -168,6 +170,20 @@
             return bhelper.luaOperator("index", obj, prop);
         }
         return builder.memberExpression(obj, prop, isComputed);
+    },
+    translateExpressionIfNeeded: function(exp) {
+        if ( !opt("luaOperators", false) ) return exp;
+        if ( exp.type == "MemberExpression" ) {
+            var prop = exp.property;
+            if ( !exp.isComputed ) prop = {"type": "Literal", value: prop.name };
+            var nu = bhelper.memberExpression(exp.object, prop, false);
+            nu.origional = exp;
+            nu.range = exp.range;
+            nu.loc = exp.loc;
+            return nu;
+        }
+
+        return exp;
     }
   }
 
@@ -429,12 +445,13 @@ Expression =
     AssignmentExpression /
     a:(FunctionExpression/CallExpression/MemberExpression/SimpleExpression/var) b:( ws? op:binop ws? (MemberExpression/SimpleExpression) )*
     {
+        a = bhelper.translateExpressionIfNeeded(a);
         if ( b === null ) return a;
         var tokens = [];
         for ( var idx in b ) {
             var v = b[idx];
             tokens.push(v[1]);
-            tokens.push(v[3]);
+            tokens.push(bhelper.translateExpressionIfNeeded(v[3]));
         }
 
         return precedenceClimber(tokens, a, 1);
@@ -469,11 +486,14 @@ ParenExpr = "(" ws? a:Expression ws? ")" { return a; }
 funcname =
     a:Identifier b:(ws? [.:] ws? Identifier)*
     {
+        var selfSuggar = false;
         if ( b.length == 0 ) return a;
         var left = a;
         for ( var i in b ) {
             left = builder.memberExpression(left, b[i][3], false);
+            if ( b[i][1] == ':' ) left.selfSuggar = true;
         }
+
         return left;
     }
 
@@ -562,7 +582,11 @@ FunctionDeclaration =
         if ( name.type != "MemberExpression" )
             return builder.functionDeclaration(name, f.params, f.body);
 
-        return bhelper.assign(name, builder.functionExpression(null, f.params, f.body));
+        //TODO: Translate member expression into call
+        var params = f.params.slice(0);
+        if ( name.selfSuggar ) params = [{type: "Identifier", name: "self"}].concat(f.params);
+
+        return bhelper.assign(name, builder.functionExpression(null, params, f.body));
     }
 
 LocalFunction =
