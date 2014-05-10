@@ -559,7 +559,10 @@ field =
 FunctionDeclaration =
     "function" ws? name:funcname ws? f:funcbody
     {
-        return builder.functionDeclaration(name, f.params, f.body);
+        if ( name.type != "MemberExpression" )
+            return builder.functionDeclaration(name, f.params, f.body);
+
+        return bhelper.assign(name, builder.functionExpression(null, f.params, f.body));
     }
 
 LocalFunction =
