@@ -215,7 +215,7 @@ BlockStatement =
 
 
 StatatementList = 
-    a:Statement? b:( ( ws? ";" ws? / ws )+ Statement )*
+    a:Statement? b:( ( ws? ";" ws? / ws )+ Statement )* (ws? ";" ws?)*
     {  
         if ( a === null ) return [];
         if ( b === null ) return a;
@@ -261,8 +261,8 @@ Statement =
     LocalAssingment /
     FunctionDeclaration /
     LocalFunction /
-    DoEndGrouped / $"" & (ws? ";")
-    ) {  return s == "" ? builder.emptyStatement() : s; }
+    DoEndGrouped 
+    ) / (ws? ";")+ ws? { return builder.emptyStatement(); }
 
 DoEndGrouped = "do" ws? b:BlockStatement ws? "end" { return b }
 
