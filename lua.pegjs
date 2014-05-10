@@ -179,7 +179,7 @@
             var flagso = {"type": "Literal", "value": flags};
             
             if ( callee.selfSuggar ) {
-                if ( callee.object.type != "Identifier" ) {
+                if ( callee.object.type == "Identifier" ) {
                     //Dont bother making a function if we are just an identifer.
                     var rcallee = bhelper.translateExpressionIfNeeded(callee)
                     return bhelper.luaOperator.apply(bhelper, ["call", flagso , rcallee, callee.object].concat(args));

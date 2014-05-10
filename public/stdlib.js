@@ -20,7 +20,14 @@ this.__lua = (function() {
 	function ne(a,b) { return a !== b; }
 	function eq(a,b) { return a === b; }
 
-	function count(a) { return a.length; }
+	function count(a) { 
+		if ( a instanceof LuaTable ) {
+			var count = 0;
+			while ( a[count] !== undefined ) ++count;
+			return count;
+		}
+		return a.length;
+	}
 
 	function and(a,b) { return a && b; }
 	function or(a,b) { return a || b; }
