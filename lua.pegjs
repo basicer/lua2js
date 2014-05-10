@@ -185,7 +185,7 @@
         if ( exp.type == "MemberExpression" ) {
             var prop = exp.property;
             if ( !exp.isComputed ) prop = {"type": "Literal", value: prop.name };
-            var nu = bhelper.memberExpression(exp.object, prop, false);
+            var nu = bhelper.memberExpression(bhelper.translateExpressionIfNeeded(exp.object), prop, false);
             nu.origional = exp;
             nu.range = exp.range;
             nu.loc = exp.loc;
@@ -537,15 +537,20 @@ args =
 var = MemberExpression / Identifier
 
 MemberExpression = 
-    a:SimpleExpression "[" ws? b:Expression ws? "]"
+    a:(CallExpression/SimpleExpression) b:indexer c:indexer*
     { 
-        return builder.memberExpression(a,b,true);
-    } /
-    a:SimpleExpression "." b:SimpleExpression
-    {
-        return builder.memberExpression(a,b,false);
-    }
+        var left = builder.memberExpression(a,b[0],b[1]);
+        for ( var idx in c ) {
+            left = builder.memberExpression(left,c[idx][0], c[idx][1]);
+        }
+        return left;
+    } 
     
+
+indexer =
+    "[" ws? b:Expression ws? "]" { return [b, true]; } /
+    "." b:SimpleExpression { return [b,false]; }
+
 
 
 ObjectExpression =
