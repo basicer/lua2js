@@ -79,9 +79,18 @@
         return { type: "VariableDeclarator", id: bhelper.tempName(), init: exp };
     },
     assign: function(target, exp) {
+        var out = builder.assignmentExpression("=", target, exp);
+        if ( target.type == "MemberExpression" && opt("luaOperators", false) ) {
+            var prop = target.property;
+            if ( !target.isComputed ) prop = {"type": "Literal", "value": prop.name, loc: prop.loc, range: prop.range };
+            var nue = bhelper.luaOperator("indexAssign", target.object, prop, exp);
+            nue.origional = out;
+            out = nue;
+        }
+            
         return {
             type: "ExpressionStatement",
-            expression: builder.assignmentExpression("=", target, exp)
+            expression: out
         };
     },
     encloseDecls: function(body /*, decls...*/) {
@@ -335,7 +344,6 @@ LocalAssingment =
         var result = builder.variableDeclaration("let", []);
 
         if ( !opt('decorateLuaObjects', false) || ( left.length < 2 && right.length < 2 )) { 
-
             for ( var i = 0; i < left.length; ++i ) {
                 result.declarations.push(            {
                     type: "VariableDeclarator",
@@ -371,18 +379,9 @@ LocalAssingment =
     }
 
 AssignmentExpression =
-    left:var ws? "=" ws? right:Expression
+    left:varlist ws? "=" ws? right:explist
     { 
-        var out = builder.assignmentExpression("=", left, right);
-        if ( left.type == "MemberExpression" && opt("luaOperators", false) ) {
-            var prop = left.property;
-            if ( !left.isComputed ) prop = {"type": "Literal", "value": prop.name, loc: prop.loc, range: prop.range };
-            var nue = bhelper.luaOperator("indexAssign", left.object, prop, right);
-            nue.origional = out;
-
-            out = nue;
-        } 
-        return out;
+        return bhelper.bulkAssign(left, right).expression;
     }
 
 BreakStatement = 
@@ -512,6 +511,12 @@ explist =
     {
          return listHelper(a,b,3); 
     } 
+
+varlist = 
+a:var b:(ws? "," ws? e:var)*
+{
+     return listHelper(a,b,3); 
+} 
 
 namelist = 
     a:Identifier b:(ws? "," ws? e:Identifier)*
