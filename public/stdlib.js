@@ -13,6 +13,10 @@ this.__lua = (function() {
 	function lte(a,b) { return a <= b; }
 	function lt(a,b) { return a < b; }
 
+	function gte(a,b) { return a >= b; }
+	function gt(a,b) { return a > b; }
+
+
 	function ne(a,b) { return a !== b; }
 	function eq(a,b) { return a === b; }
 
@@ -24,13 +28,15 @@ this.__lua = (function() {
 	function div(a,b) { return a / b; }
 
 	function call(flags, what, that /*, args... */ ) {
+		var injectSelf = !!(flags & 1); 
+		var args = expand(Array.prototype.slice.call(arguments, 3));
 
-
-		return what.apply(that, expand(Array.prototype.slice.call(arguments, 3)));
+		if ( injectSelf ) args.unshift(that);
+		return what.apply(that, args);
 	}
 
 	function LuaTable() {
-		
+		Object.defineProperty(this, "__metatable", {value: null, enumerable: false});
 	};
 
 	Object.defineProperty(LuaTable.prototype, "__luaType",  {value: "table",  enumerable: false});
@@ -47,6 +53,25 @@ this.__lua = (function() {
 		
 	};
 	Object.defineProperty(LuaReturnValues.prototype, "__luaType",  {value: "returnValues",  enumerable: false});
+
+	function index(table, prop) {
+		var val = table[prop];
+		if ( val !== null & val !== undefined ) return val;
+		if ( table.__metatable === null ) return null;
+
+		var idx = table.__metatable.__index;
+		if ( idx === null || idx === undefined ) return null;
+
+		if ( typeof idx == "function" ) return oneValue(idx(table, prop));
+		return index(idx, prop);
+
+
+	}
+
+	function oneValue(v) {
+		if ( v instanceof LuaReturnValues ) return v.values[0];
+		return v;
+	}
 
 	function makeMultiReturn() {
 		var out = Object.create(LuaReturnValues.prototype, {});
@@ -85,7 +110,10 @@ this.__lua = (function() {
 		lte: lte,
 		lt: lt,
 		ne: ne,
+		gt: gt,
+		gte: gte,
 		eq: eq,
+		index: index,
 		concat: concat,
 		makeTable: makeTable,
 		expandReturnValues: expandReturnValues,
@@ -99,8 +127,10 @@ this.__lua = (function() {
 
 })();
 
-function print() { console.log.apply(console, arguments); }
-function unpack(table) {
+this.error = function(s) { throw s; }
+
+this.print = function() { console.log.apply(console, arguments); }
+this.unpack = function(table) {
 	var array = [];
 	var idx = 1;
 	while ( table[idx] !== undefined ) {
@@ -110,3 +140,11 @@ function unpack(table) {
 	return __lua.makeMultiReturn.apply(__lua, array);
 }
 this.math = Math;
+
+this.setmetatable = function(target, meta) {
+	target.__metatable = meta;
+}
+
+this.getmetatable = function(taget, meta) {
+	return taget.__metatable;
+}
