@@ -23,6 +23,37 @@
     return obj;
   }
 
+  var opPrecedence = {
+    "^": 10,
+    "not": 9,
+    "*": 8, "/": 8,
+    "+": 7, "-": 7,
+    "..": 6,
+    "<": 5, ">": 5, ">=": 5, "<=": 5,
+    "and": 5,
+    "or": 4
+  }
+
+  function precedenceClimber(tokens, lhs, min) {
+    while ( true ) { 
+        if ( tokens.length == 0 ) return lhs;
+        var op = tokens[0];
+        var prec = opPrecedence[op];
+        if ( prec < min ) return lhs;
+        tokens.shift();
+
+        var rhs = tokens.shift();
+        while ( true ) {
+            var peek = tokens[0];
+            if ( peek == null || opPrecedence[peek] <= prec ) break;
+            rhs = precedenceClimber(tokens, rhs, opPrecedence[peek]);
+        }
+
+        lhs = bhelper.binaryExpression(op, lhs, rhs);
+    }
+
+  }
+
   var builder = {
     assignmentExpression: function(op, left, right) { return wrapNode({type: "AssignmentExpression", operator: op, left: left, right: right }); },
     binaryExpression: function(op, left, right) { return wrapNode({type: "BinaryExpression", operator: op, left: left, right: right }); },
@@ -392,12 +423,17 @@ SimpleExpression = (
     ObjectExpression / UnaryExpression / ParenExpr )
 
 Expression = 
-    FunctionExpression / CallExpression / a:(MemberExpression/SimpleExpression/var) b:( ws? op:binop ws? Expression )?
+    FunctionExpression / CallExpression / a:(MemberExpression/SimpleExpression/var) b:( ws? op:binop ws? (MemberExpression/SimpleExpression) )*
     {
         if ( b === null ) return a;
-        var xop = b[1];
+        var tokens = [];
+        for ( var idx in b ) {
+            var v = b[idx];
+            tokens.push(v[1]);
+            tokens.push(v[3]);
+        }
 
-        return bhelper.binaryExpression(xop, a, b[3]);
+        return precedenceClimber(tokens, a, 1);
     } / AssignmentExpression
 
 
