@@ -63,7 +63,7 @@
     functionDeclaration: function(name, args, body, isGenerator, isExpression) {
         return wrapNode({type: "FunctionDeclaration", id: name, params: args, body: body, generator: isGenerator, expression: isExpression });
     },
-    memberExpression: function(obj, prop, isComputed) { return wrapNode({ type:"MemberExpression", object: obj, property: prop, computed: isComputed }); },
+    memberExpression: function(obj, prop, isComputed) { return wrapNode({ type:"MemberExpression", object: obj, property: prop, isComputed: isComputed }); },
     variableDeclaration: function(kind, decls) { return { type: "VariableDeclaration", declarations: decls, kind: opt("forceVar", true) ? "var" : kind } },
     functionExpression: function(name, args, body) { return { type: "FunctionExpression", body: body, params: args } }
   };
@@ -372,7 +372,16 @@ LocalAssingment =
 AssignmentExpression =
     left:var ws? "=" ws? right:Expression
     { 
-        return builder.assignmentExpression("=", left, right);
+        var out = builder.assignmentExpression("=", left, right);
+        if ( left.type == "MemberExpression" && opt("luaOperators", false) ) {
+            var prop = left.property;
+            if ( !left.isComputed ) prop = {"type": "Literal", "value": prop.name, loc: prop.loc, range: prop.range };
+            var nue = bhelper.luaOperator("indexAssign", left.object, prop, right);
+            nue.origional = out;
+
+            out = nue;
+        } 
+        return out;
     }
 
 BreakStatement = 
