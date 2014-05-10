@@ -36,13 +36,13 @@ this.__lua = (function() {
 	}
 
 	function LuaTable() {
-		Object.defineProperty(this, "__metatable", {value: null, enumerable: false});
+		
 	};
 
 	Object.defineProperty(LuaTable.prototype, "__luaType",  {value: "table",  enumerable: false});
 
 	function makeTable(t) {
-		var out = Object.create(LuaTable.prototype, {});
+		var out = new LuaTable();
 		for ( var k in t ) {
 			out[k] = t[k];
 		}
@@ -55,17 +55,50 @@ this.__lua = (function() {
 	Object.defineProperty(LuaReturnValues.prototype, "__luaType",  {value: "returnValues",  enumerable: false});
 
 	function index(table, prop) {
-		var val = table[prop];
-		if ( val !== null & val !== undefined ) return val;
-		if ( table.__metatable === null ) return null;
+		if ( table instanceof LuaTable ) {
+			var val = table[prop];
+			if ( val !== null & val !== undefined ) return val;
+			if ( table.__metatable === undefined ) return null;
 
-		var idx = table.__metatable.__index;
-		if ( idx === null || idx === undefined ) return null;
+			var idx = table.__metatable.__index;
+			if ( idx === null || idx === undefined ) return null;
 
-		if ( typeof idx == "function" ) return oneValue(idx(table, prop));
-		return index(idx, prop);
+			if ( typeof idx == "function" ) return oneValue(idx(table, prop));
+			return index(idx, prop);
+		} else {
+			return table[prop];
+		}
+	}
+
+	function indexAssign(table, prop, value) {
+		if ( table instanceof LuaTable ) {
+			var val = table[prop];
+			if ( val !== null & val !== undefined ) {
+				table[prop] = value;
+				return value;
+			}
+
+			if ( table.__metatable === undefined ) {
+				table[prop] = value;
+				return value;
+			}
 
 
+
+			var idx = table.__metatable.__newindex;
+			if ( idx === null || idx === undefined ) {
+				table[prop] = value;
+				return value;	
+			}
+
+			if ( typeof idx == "function" ) idx(table, prop, value);
+			else indexAssign(idx, prop, value);
+
+
+		} else {
+			table[prop] = value;
+			return value;
+		}
 	}
 
 	function oneValue(v) {
@@ -114,6 +147,7 @@ this.__lua = (function() {
 		gte: gte,
 		eq: eq,
 		index: index,
+		indexAssign: indexAssign,
 		concat: concat,
 		makeTable: makeTable,
 		expandReturnValues: expandReturnValues,
@@ -142,7 +176,8 @@ this.unpack = function(table) {
 this.math = Math;
 
 this.setmetatable = function(target, meta) {
-	target.__metatable = meta;
+
+	Object.defineProperty(target, "__metatable", {value: meta, enumerable: false, configurable: true });
 }
 
 this.getmetatable = function(taget, meta) {
