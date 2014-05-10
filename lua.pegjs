@@ -476,18 +476,21 @@ prefixexp =
     funcname / '(' ws? e:Expression ws? ')' { return e; }
 
 CallExpression = 
-    who:prefixexp ws? a:args 
+    who:prefixexp a:(ws? (":" Identifier )? callsuffix)+
     {
-        return bhelper.callExpression(who,a);
-    } /
-    who:prefixexp ws? b:ObjectExpression 
-    {
-        return bhelper.callExpression(who, [b]);
-    } /
-    who:prefixexp ws? c:String
-    {
-        return bhelper.callExpression(who, [{type: "Literal", value: c}]);
+        var left = who
+        for ( var idx = 0; idx < a.length; ++idx ) {
+            var v = a[idx];
+            if ( v[1] != null ) left = builder.memberExpression(left, v[1][1], false);
+            left = bhelper.callExpression(left,v[2]);
+        }
+        return left;
     } 
+
+callsuffix =
+    a:args { return a; } /
+    b:ObjectExpression { return [b]; } /
+    c:String { return [{type: "Literal", value: c, loc: loc(), range: range()}]; }
 
 ParenExpr = "(" ws? a:Expression ws? ")" { return a; }
 
