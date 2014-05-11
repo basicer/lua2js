@@ -19,7 +19,7 @@
     obj.loc = loc();
     obj.range = range();
     obj.hasScope = hasScope;
-
+    obj.text = text();
     return obj;
   }
 
@@ -84,7 +84,8 @@
         if ( target.type == "MemberExpression" && opt("luaOperators", false) ) {
             var prop = target.property;
             if ( !target.isComputed ) prop = {"type": "Literal", "value": prop.name, loc: prop.loc, range: prop.range };
-            var nue = bhelper.luaOperator("indexAssign", target.object, prop, exp);
+            var nue = bhelper.luaOperator("indexAssign", bhelper.translateExpressionIfNeeded(target.object), prop, exp);
+
             nue.origional = out;
             out = nue;
         }
@@ -197,6 +198,9 @@
                 }
             } else {
                 var rcallee = bhelper.translateExpressionIfNeeded(callee)
+                if ( rcallee.type == "Identifier" && rcallee.name == "assert" ) {
+                    args.push({type: "Literal", value: args[0].text || "?"})
+                }
                 return bhelper.luaOperator.apply(bhelper, ["call", flagso , rcallee, that].concat(args));
             }
         } else {
@@ -286,7 +290,7 @@ balstringinsde =
 
 Statement = 
     s: ( 
-    BreakStatement /
+    Debugger / BreakStatement /
     NumericFor /
     ForEach /
     WhileStatement /
@@ -298,6 +302,10 @@ Statement =
     LocalFunction /
     DoEndGrouped 
     ) 
+
+Debugger = 
+    "debugger"
+    { return {type: "ExpressionStatement", expression: {type: "Identifier", name:"debugger; "} } }
 
 DoEndGrouped = "do" ws? b:BlockStatement ws? "end" { return b }
 
@@ -483,7 +491,7 @@ WhileStatement =
 
 
 SimpleExpression = (
-    Literal / FunctionExpression / CallExpression / Identifier /
+    Literal / ResetExpression / FunctionExpression / CallExpression / Identifier /
     ObjectExpression / UnaryExpression / ParenExpr )
 
 Expression = 
@@ -532,6 +540,11 @@ callsuffix =
     c:String { return [{type: "Literal", value: c, loc: loc(), range: range()}]; }
 
 ParenExpr = "(" ws? a:Expression ws? ")" { return a; }
+
+ResetExpression = 
+    "..." {
+        return bhelper.luaOperator("rest");
+    }
 
 
 funcname =
@@ -624,7 +637,7 @@ ObjectExpression =
     }
 
 field =
-    n:(Literal/Identifier) ws? "=" ws? v:Expression 
+    n:(Literal/Identifier) ws? "=" ws? v:(MemberExpression/CallExpression/SimpleExpression/Expression) 
     {
         return { key: n, value: v };
     }/
@@ -641,7 +654,7 @@ field =
 FunctionDeclaration =
     "function" ws? name:funcname ws? f:funcbody
     {
-        if ( name.type != "MemberExpression" )
+        if ( name.type != "MemberExpression" && opt("allowRegularFunctions", false) )
             return builder.functionDeclaration(name, f.params, f.body);
 
         //TODO: Translate member expression into call
@@ -654,7 +667,12 @@ FunctionDeclaration =
 LocalFunction =
     "local" ws "function" ws? name:funcname ws? f:funcbody
     {
-        return builder.functionDeclaration(name, f.params, f.body);
+        if ( opt("allowRegularFunctions", false) )
+            return builder.functionDeclaration(name, f.params, f.body);
+
+        return builder.variableDeclaration("let", [
+            {type: "VariableDeclarator", id: name, init: builder.functionExpression(name, f.params, f.body)}
+        ]);
     }
 
 FunctionExpression = 
@@ -676,10 +694,14 @@ funcdef =
     "function" ws? b:funcbody { return b; }
 
 funcbody = 
-    "(" ws? p:paramlist ws? ")" ws? body:BlockStatement ws? "end"
+    "(" ws? p:paramlist ws? rest:("," ws? "..." ws?)? ")" ws? body:BlockStatement ws? "end"
     {
-        return { params: p, body: body }
-    }
+        return { params: p, body: body, rest: rest != null }
+    } /
+    "(" ws? "..." ws? ")" ws? body:BlockStatement ws? "end"
+    {
+        return { params: [], body: body, rest: true }
+    } 
 
 paramlist = 
     a:Identifier ws? b:("," ws? Identifier)*
