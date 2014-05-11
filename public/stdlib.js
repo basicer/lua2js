@@ -42,6 +42,12 @@ this.__lua = (function() {
 		return what.apply(that, args);
 	}
 
+	function rest(args, cnt) {
+		var out = Object.create(LuaReturnValues.prototype, {});
+		out.values = Array.prototype.slice.call(args, cnt);
+		return out;
+	}
+
 	function LuaTable() {
 		
 	};
@@ -162,7 +168,8 @@ this.__lua = (function() {
 		count: count,
 		and: and,
 		or: or,
-		expand: expand
+		expand: expand,
+		rest: rest,
 	}
 
 
