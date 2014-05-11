@@ -186,6 +186,11 @@ this.__lua = (function() {
 this.string = {
 	byte: function byte() { },
 	char: function char(/* arguments */) {
+		var out = "";
+		for ( var i = 0; i < arguments.length; ++i ) {
+			out += String.fromCharCode(arguments[i]|0); 
+		}
+		return out;
 
 	},
 	dump: null,
@@ -213,7 +218,13 @@ this.string = {
 this.table = {
 	concat: null,
 	insert: null,
-	pack: null,
+	pack: function(arguments) {
+		var obj = {}
+		for ( var i = 0; i < arguments.length; ++i) {
+			obj[("" + (i + 1))] = arguments[i];
+		}
+		return this.__lua.makeTable(obj);
+	},
 	remove: null,
 	sort: function sort(table) { return table; },
 	unpack: null
