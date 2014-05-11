@@ -62,8 +62,8 @@ this.__lua = (function() {
 		return out;
 	}
 
-	function LuaReturnValues() {
-		
+	function LuaReturnValues(v) {
+		this.values = v;
 	};
 	Object.defineProperty(LuaReturnValues.prototype, "__luaType",  {value: "returnValues",  enumerable: false});
 
@@ -120,9 +120,7 @@ this.__lua = (function() {
 	}
 
 	function makeMultiReturn() {
-		var out = Object.create(LuaReturnValues.prototype, {});
-		out.values = Array.prototype.slice.call(arguments, 0);
-		return out;
+		return new LuaReturnValues(Array.prototype.slice.call(arguments, 0));
 	}
 
 	function expand(what) {
@@ -145,6 +143,15 @@ this.__lua = (function() {
 		return expand(arguments);
 	}
 
+	function pcall(what /*, args... */ ) {
+		try {
+			var result = expand([what.apply(this, Array.prototype.slice.call(arguments, 1))]);
+			result.unshift(true);
+			return makeMultiReturn.apply(__lua, result);
+		} catch ( e ) {
+			return makeMultiReturn(false, e);
+		}
+	}
 
 
 	return {
@@ -170,25 +177,109 @@ this.__lua = (function() {
 		or: or,
 		expand: expand,
 		rest: rest,
+		pcall: pcall
 	}
 
 
 })();
 
-this.error = function(s) { throw s; }
+this.string = {
+	byte: function byte() { },
+	char: function char(/* arguments */) {
 
-this.assert = function(what, msg) {
+	},
+	dump: null,
+	find: null,
+	format: null,
+	gmatch: null,
+	gsub: null,
+	len: function len(s) { return ("" + s).length; },
+	lower: function lower(s) { return ("" + s).toLowerCase() },
+	match: null,
+	reverse: function(s) {
+		return ("" + s).split("").reverse().join("");
+	},
+	sub: function(s, i, j) {
+		if ( j === undefined || n === null ) j = s.length;
+		i = i % string.length;
+		j = j % string.length;
+
+		return ("" + s).substring(i,j);
+
+	},
+	upper: function lower(s) { return ("" + s).toUpperCase(); }
+}
+
+this.table = {
+	concat: null,
+	insert: null,
+	pack: null,
+	remove: null,
+	sort: function sort(table) { return table; },
+	unpack: null
+
+}
+
+this.os = {
+	clock: null,
+	date: null,
+	difftime: function difftime(t1,t2) { return t2 - t1; },
+	execute: null,
+	exit: null,
+	time: function time(table) {
+		if ( table == null ) return new Date().getTime();
+		throw "Time given a table not implemented yet."
+	}
+}
+
+this.io = {
+	write: function() { print(arguments); }
+}
+
+this.error = function error(s) { throw s; }
+
+this.assert = function assert(what, msg) {
 	if ( !!!what ) console.log("Assertion Failed!", msg);
 	else ( console.log("Assert Passed!" , msg));
 }
 
-this.type = function(what) {
-	return typeof what;
+this.type = function type(what) {
+	var t = typeof what;
+	if ( t == "object" ) return "table";
+	return t;
 
 }
 
-this.print = function() { console.log.apply(console, arguments); }
-this.unpack = function(table) {
+
+this.pairs = function pairs(table) {
+	return __lua.makeMultiReturn(this.next, table, null);
+}
+
+this.ipairs = function ipairs(table) {
+	return __lua.makeMultiReturn(function ipairsitr(table, cur) {
+		cur = cur + 1;
+		if ( table[cur] === null || table[cur] === undefined ) return null;
+		return __lua.makeMultiReturn(cur, table[cur]);
+	}, table, null);
+}
+
+this.next = function next(table, cur) {
+	var next = ( cur === null || cur === undefined );
+	for ( var idx in table ) {
+		var v = table[idx];
+		if ( next ) return __lua.makeMultiReturn(idx, v);
+		next = ( idx == cur );
+	}
+	return null;
+}
+
+this.print = function print() { console.log.apply(console, arguments); }
+this.pcall = this.__lua.pcall;
+
+this.rawequals = function rawequals(a,b) { return a == b; }
+this.rawget = function rawget(table, val) { return table[va]; }
+
+this.rawget = function rawget(table) {
 	var array = [];
 	var idx = 1;
 	while ( table[idx] !== undefined ) {
@@ -199,11 +290,11 @@ this.unpack = function(table) {
 }
 this.math = Math;
 
-this.setmetatable = function(target, meta) {
+this.setmetatable = function setmetatable(target, meta) {
 
 	Object.defineProperty(target, "__metatable", {value: meta, enumerable: false, configurable: true });
 }
 
-this.getmetatable = function(taget, meta) {
+this.getmetatable = function getmetatable(taget, meta) {
 	return taget.__metatable;
 }
