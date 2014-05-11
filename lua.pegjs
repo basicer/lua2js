@@ -1,6 +1,6 @@
 {
-  function loc() { return undefined && {start: { line: line(), column: column() } } }
-  function range() { return undefined && [offset(), offset() + text().length]; }
+  function loc() { return {start: { line: line(), column: column() } } }
+  function range() { return [offset(), offset() + text().length]; }
   function listHelper(a,b,c) { return [a].concat(b.map(function(b) { return b[c || 2]; })); }
   function opt(name, def) { return options[name] === undefined ? def : options[name] }
 
@@ -226,6 +226,18 @@
         }
 
         return exp;
+    },
+    injectRest: function(block, count) {
+        block.unshift(builder.variableDeclaration("let", [
+                {
+                    type: "VariableDeclarator", 
+                    id: {type: "Identifier", name:"__lua$rest"}, 
+                    init: bhelper.luaOperator("rest", 
+                        {type: "Identifier", name:"arguments"},
+                        {type: "Literal", value:count}
+                    )
+                }
+             ]));
     }
   }
 
@@ -543,7 +555,7 @@ ParenExpr = "(" ws? a:Expression ws? ")" { return a; }
 
 ResetExpression = 
     "..." {
-        return bhelper.luaOperator("rest");
+        return wrapNode({type: "Identifier", name: "__lua$rest"});
     }
 
 
@@ -637,6 +649,7 @@ ObjectExpression =
     }
 
 field =
+                                          /* Otherwise we think it might be a multi assignment */
     n:(Literal/Identifier) ws? "=" ws? v:(MemberExpression/CallExpression/SimpleExpression/Expression) 
     {
         return { key: n, value: v };
@@ -654,6 +667,11 @@ field =
 FunctionDeclaration =
     "function" ws? name:funcname ws? f:funcbody
     {
+
+        if ( f.rest ) {
+            bhelper.injectRest(f.body.body, f.params.length);
+        }
+
         if ( name.type != "MemberExpression" && opt("allowRegularFunctions", false) )
             return builder.functionDeclaration(name, f.params, f.body);
 
@@ -684,6 +702,10 @@ FunctionExpression =
             params: f.params,
             loc:loc(),
             range:range()
+        }
+
+        if ( f.rest ) {
+            bhelper.injectRest(f.body.body, f.params.length)
         }
 
         return result;
