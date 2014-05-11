@@ -22,9 +22,9 @@ this.__lua = (function() {
 
 	function count(a) { 
 		if ( a instanceof LuaTable ) {
-			var count = 0;
-			while ( a[count] !== undefined ) ++count;
-			return count;
+			var count = 1;
+			while ( a[("" + count)] !== undefined ) ++count;
+			return count - 1;
 		}
 		return a.length;
 	}
@@ -227,9 +227,23 @@ this.table = {
 	},
 	remove: null,
 	sort: function sort(table) { return table; },
-	unpack: null
+	unpack: function(table,i,j) {
+		if ( i === undefined || i === null ) i = 1;
+		if ( j === undefined || j === null ) j = this.__lua.count(table);
+
+		var arr = [];
+		for ( var a = i; a <= j; ++a ) {
+			arr.push(table[a]);
+		}
+
+		return this.__lua.makeMultiReturn.apply(this.__lua, arr);
+
+
+	}
 
 }
+
+this.unpack = this.table.unpack;
 
 this.os = {
 	clock: null,
