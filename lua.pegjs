@@ -229,7 +229,7 @@
 
 start = ws? t:BlockStatement ws? { return t; }
 
-ws = ([ \r\t\n] / ("--" ( [^\n]* "\n" / .* ) )) +
+ws = ([ \r\t\n] / "--[" balstringinsde "]"  / ("--" ( [^\n]* "\n" / .* ) )) +
 
 BlockStatement =
     r:ReturnStatement
@@ -276,7 +276,13 @@ stringchar =
 
 String =
     "\"" r:(stringchar/"'") * "\"" { return r.join(''); } /
-    "'" r:(stringchar/'"') * "'" { return r.join(''); }
+    "'" r:(stringchar/'"') * "'" { return r.join(''); } / 
+    "[" s: balstringinsde "]" { return s; }
+
+balstringinsde =
+    "=" a:balstringinsde "=" { return a; } /
+    "[" [\n]? a:$(!("]" "="* "]") .)* "]" { return a;}
+
 
 Statement = 
     s: ( 
@@ -291,7 +297,7 @@ Statement =
     FunctionDeclaration /
     LocalFunction /
     DoEndGrouped 
-    ) / (ws? ";")+ ws? { return builder.emptyStatement(); }
+    ) 
 
 DoEndGrouped = "do" ws? b:BlockStatement ws? "end" { return b }
 
@@ -482,7 +488,7 @@ SimpleExpression = (
 
 Expression = 
     AssignmentExpression /
-    a:(FunctionExpression/CallExpression/MemberExpression/SimpleExpression/var) b:( ws? op:binop ws? (MemberExpression/SimpleExpression) )*
+    a:(MemberExpression/SimpleExpression) b:( ws? op:binop ws? (MemberExpression/SimpleExpression) )*
     {
         a = bhelper.translateExpressionIfNeeded(a);
         if ( b === null ) return a;
@@ -499,7 +505,7 @@ Expression =
 
 
 unop = $("-" / "not" / "#")
-binop = $("+" / "-" / "==" / ">" / "<" / "~=" / ".." / "and" / "or" / "*" / "/" / "%" )
+binop = $("+" / "-" / "==" / ">=" / "<=" / "~=" / ">" / "<" / ".." / "and" / "or" / "*" / "/" / "%" )
 
 
 prefixexp =
@@ -730,4 +736,4 @@ Literal =
     {
         return { type: "Literal", value: s, loc: loc(), range: range()  }
 
-    } 
+    }
