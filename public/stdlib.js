@@ -170,6 +170,16 @@ this.__lua = (function() {
 
 this.error = function(s) { throw s; }
 
+this.assert = function(what, msg) {
+	if ( !!!what ) console.log("Assertion Failed!", msg);
+	else ( console.log("Assert Passed!" , msg));
+}
+
+this.type = function(what) {
+	return typeof what;
+
+}
+
 this.print = function() { console.log.apply(console, arguments); }
 this.unpack = function(table) {
 	var array = [];
