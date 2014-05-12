@@ -598,7 +598,7 @@ namelist =
     } 
 
 args =
-    "(" ws? a:explist ")"
+    "(" ws? a:explist ws? ")"
     {
          return a; 
     } /
