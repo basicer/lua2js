@@ -130,7 +130,7 @@ fs.readdirSync("./lua-tests").forEach(function(f) {
 
                 exec('lua ./lua-tests/' + f, function(err, stdout, stderr) {
                     if ( stderr !== "" ) test.ok(false, stderr);
-                    test.equals(env.getStdOut(), stdout );
+                    test.equals(env.getStdOut(), stdout.replace(/\r\n/g,"\n") );
                     test.done();
                 });
             })(makenv());

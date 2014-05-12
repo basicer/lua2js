@@ -636,8 +636,10 @@ ObjectExpression =
             range: range()
         };
 
+
+        //TODO: Use listhelper here?
         if ( f !== null ) {
-            if ( f.key === undefined ) f.key = {type: "Literal", value: 1};
+            if ( f.key === undefined ) f.key = {type: "Literal", value: 1, arrayLike: true};
             f.kind = "init";
             result.properties.push(f);
         } 
@@ -645,12 +647,21 @@ ObjectExpression =
         if ( s )
         for ( var idx in s ) {
             var v = s[idx][3];
-            if ( v.key === undefined ) v.key = {type: "Literal", value: 2 + parseInt(idx)};
+            if ( v.key === undefined ) v.key = {type: "Literal", value: 2 + parseInt(idx), arrayLike: true};
             v.kind = "init";
             result.properties.push(v);
         }
 
-        if ( opt('decorateLuaObjects', false) ) return bhelper.luaOperator("makeTable", result);
+
+        if ( opt('decorateLuaObjects', false) ) {
+            var last;
+            if ( result.properties.length > 0 && result.properties[result.properties.length-1].key.arrayLike ) {
+                if ( result.properties[result.properties.length-1].value.type != "Literal") last = result.properties.pop();
+            }
+
+            if ( last ) return bhelper.luaOperator("makeTable", result, last.value); 
+            else return bhelper.luaOperator("makeTable", result);
+        }
         else return result;
     }
 
