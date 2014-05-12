@@ -310,6 +310,7 @@ Statement =
     Debugger / BreakStatement /
     NumericFor /
     ForEach /
+    RepeatUntil /
     WhileStatement /
     IfStatement /
     ExpressionStatement / 
@@ -397,6 +398,7 @@ ForEach =
 
         return bhelper.encloseDeclsUnpack(statements, [iterator, context, curent], b);
     }
+
 
 LocalAssingment =
     "local" ws left:namelist ws? "=" ws? right:explist
@@ -512,6 +514,23 @@ WhileStatement =
 
     } }
 
+
+RepeatUntil =
+    "repeat" ws body:BlockStatement ws? "until" ws  test:Expression
+    { return {
+        type: "DoWhileStatement",
+        test: { 
+            type: "UnaryExpression",
+            operator: "!",
+            argument: test,
+            prefix: true,
+            loc: test.loc,
+            range: test.range
+        },
+        body: body,
+        loc: loc(),
+        range: range()
+    } }
 
 
 That = "that" { return { "type": "ThisExpression" }; }
