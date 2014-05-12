@@ -257,7 +257,7 @@ BlockStatement =
     {
         return builder.blockStatement([r]) 
     } /
-    list:StatatementList ret:(ws ReturnStatement)?
+    list:StatatementList ret:(( ws? ";" ws? / ws )+ ReturnStatement)?
     {
         list = expandMultiStatements(list);
         return builder.blockStatement(ret === null ? list : list.concat([ret[1]])); 
@@ -327,9 +327,9 @@ Debugger =
 DoEndGrouped = "do" ws? b:BlockStatement ws? "end" { return b }
 
 NumericFor =
-    "for" ws a:Identifier ws? "=" ws? b:Expression ws? "," ws? c:Expression d:( ws? "," Expression )? ws? "do" ws? body:BlockStatement ws? "end"
+    "for" ws a:Identifier ws? "=" ws? b:Expression ws? "," ws? c:Expression d:( ws? "," ws? Expression )? ws? "do" ws? body:BlockStatement ws? "end"
     {
-        var amount = d == null ? {type: "Literal", value: 1 } : d[2];
+        var amount = d == null ? {type: "Literal", value: 1 } : d[3];
         
         var updateBy = bhelper.tempVar(amount);
         var testValue = bhelper.tempVar(c);
@@ -477,7 +477,8 @@ ReturnStatement =
         var arg;
 
 
-        if ( argument.length == 1 ) arg = argument[0];
+        if ( argument == null ) { }
+        else if ( argument.length == 1 ) arg = argument[0];
         else if ( argument.length > 1 ) {
             if ( opt('decorateLuaObjects', false) ) arg = bhelper.luaOperatorA("makeMultiReturn", argument);
             else  arg = {
@@ -491,7 +492,14 @@ ReturnStatement =
             loc: loc(),
             range: range()
         }
-    } 
+    } /
+    "return"
+    {
+        return {
+            type: "ReturnStatement",
+            loc: loc(),
+        }     
+    }
 
 WhileStatement =
     "while" ws test:Expression ws "do" ws body:BlockStatement ws "end" 
