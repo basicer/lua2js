@@ -194,7 +194,7 @@ var __lua = (function() {
 	}
 
 	function makeMultiReturn() {
-		return new LuaReturnValues(Array.prototype.slice.call(arguments, 0));
+		return new LuaReturnValues(expand(arguments));
 	}
 
 	function expand(what) {
