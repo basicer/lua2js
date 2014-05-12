@@ -271,7 +271,7 @@ this.string = {
 this.table = {
 	concat: null,
 	insert: null,
-	pack: function(arguments) {
+	pack: function(/* arguments */) {
 		var obj = {}
 		for ( var i = 0; i < arguments.length; ++i) {
 			obj[("" + (i + 1))] = arguments[i];
