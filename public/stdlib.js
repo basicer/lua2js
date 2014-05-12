@@ -1,4 +1,5 @@
-this.__lua = (function() {
+var env = this;
+var __lua = (function() {
 
 	function type(what) {
 		var t = typeof what;
@@ -93,11 +94,22 @@ this.__lua = (function() {
 
 	Object.defineProperty(LuaTable.prototype, "__luaType",  {value: "table",  enumerable: false});
 
-	function makeTable(t) {
+	function makeTable(t, extra) {
 		var out = new LuaTable();
 		for ( var k in t ) {
 			out[k] = t[k];
 		}
+
+		if ( extra !== undefined ) {
+			var i = 1;
+			while ( out[i] !== null && out[i] !== undefined ) ++i;
+			if ( extra instanceof LuaReturnValues ) {
+				for ( var j = 0; j < extra.values.length; ++j ) out[i+j] = extra.values[j];
+			} else {
+				out[i] = extra;
+			}
+		}
+
 		return out;
 	}
 
@@ -129,6 +141,8 @@ this.__lua = (function() {
 
 			if ( typeof idx == "function" ) return oneValue(idx(table, prop));
 			return index(idx, prop);
+		} else if ( typeof table == "string" ) {
+			return this.string[prop];
 		} else {
 			return table[prop];
 		}
@@ -159,6 +173,8 @@ this.__lua = (function() {
 			else indexAssign(idx, prop, value);
 
 
+		} else if ( typeof table == "string" ) { 
+			throw "attempt to index string value"
 		} else {
 			table[prop] = value;
 			return value;
@@ -236,7 +252,10 @@ this.__lua = (function() {
 
 })();
 
-this.string = {
+
+this.__lua = __lua;
+
+env.string = {
 	byte: function byte() { },
 	char: function char(/* arguments */) {
 		var out = "";
@@ -268,7 +287,7 @@ this.string = {
 	upper: function lower(s) { return ("" + s).toUpperCase(); }
 }
 
-this.table = {
+env.table = {
 	concat: null,
 	insert: null,
 	pack: function(/* arguments */) {
@@ -282,23 +301,23 @@ this.table = {
 	sort: function sort(table) { return table; },
 	unpack: function(table,i,j) {
 		if ( i === undefined || i === null ) i = 1;
-		if ( j === undefined || j === null ) j = this.__lua.count(table);
+		if ( j === undefined || j === null ) j = __lua.count(table);
 
 		var arr = [];
 		for ( var a = i; a <= j; ++a ) {
 			arr.push(table[a]);
 		}
 
-		return this.__lua.makeMultiReturn.apply(this.__lua, arr);
+		return __lua.makeMultiReturn.apply(__lua, arr);
 
 
 	}
 
 };
 
-this.unpack = this.table.unpack;
+env.unpack = env.table.unpack;
 
-this.os = {
+env.os = {
 	clock: null,
 	date: null,
 	difftime: function difftime(t1,t2) { return t2 - t1; },
@@ -310,27 +329,27 @@ this.os = {
 	}
 }
 
-this.io = {
+env.io = {
 	write: function() { print(arguments); }
 }
 
-this.error = function error(s) { throw s; }
+env.error = function error(s) { throw s; }
 
-this.assert = function assert(what, msg) {
+env.assert = function assert(what, msg) {
 	if ( !!!what ) console.log("Assertion Failed!", msg);
 	else ( console.log("Assert Passed!" , msg));
 }
 
-this.type = function type(what) {
-	return this.__lua.type(what);
+env.type = function type(what) {
+	return __lua.type(what);
 }
 
 
-this.pairs = function pairs(table) {
-	return __lua.makeMultiReturn(this.next, table, null);
+env.pairs = function pairs(table) {
+	return __lua.makeMultiReturn(env.next, table, null);
 }
 
-this.ipairs = function ipairs(table) {
+env.ipairs = function ipairs(table) {
 	return __lua.makeMultiReturn(function ipairsitr(table, cur) {
 		cur = cur + 1;
 		if ( table[cur] === null || table[cur] === undefined ) return null;
@@ -338,7 +357,7 @@ this.ipairs = function ipairs(table) {
 	}, table, null);
 }
 
-this.next = function next(table, cur) {
+env.next = function next(table, cur) {
 	var next = ( cur === null || cur === undefined );
 	for ( var idx in table ) {
 		var v = table[idx];
@@ -348,14 +367,14 @@ this.next = function next(table, cur) {
 	return null;
 }
 
-this.print = function print() { console.log.apply(console, arguments); }
-this.pcall = this.__lua.pcall;
+env.print = function print() { console.log.apply(console, arguments); }
+env.pcall = this.__lua.pcall;
 
-this.rawequals = function rawequals(a,b) { return a == b; }
-this.rawget = function rawget(table, prop) { return table[prop]; }
-this.rawset = function rawset(table, prop, val) { return table[prop] = val; }
+env.rawequals = function rawequals(a,b) { return a == b; }
+env.rawget = function rawget(table, prop) { return table[prop]; }
+env.rawset = function rawset(table, prop, val) { return table[prop] = val; }
 
-this.something = function something(table) {
+env.something = function something(table) {
 	var array = [];
 	var idx = 1;
 	while ( table[idx] !== undefined ) {
@@ -364,15 +383,15 @@ this.something = function something(table) {
 	}
 	return __lua.makeMultiReturn.apply(__lua, array);
 }
-this.math = Math;
+env.math = Math;
 
-this.setmetatable = function setmetatable(target, meta) {
+env.setmetatable = function setmetatable(target, meta) {
 
 	Object.defineProperty(target, "__metatable", {value: meta, enumerable: false, configurable: true });
 }
 
-this.getmetatable = function getmetatable(taget, meta) {
+env.getmetatable = function getmetatable(taget, meta) {
 	return taget.__metatable;
 }
 
-var __lua = this.__lua;
+
