@@ -241,7 +241,7 @@ this.table = {
 
 	}
 
-}
+};
 
 this.unpack = this.table.unpack;
 
@@ -302,9 +302,10 @@ this.print = function print() { console.log.apply(console, arguments); }
 this.pcall = this.__lua.pcall;
 
 this.rawequals = function rawequals(a,b) { return a == b; }
-this.rawget = function rawget(table, val) { return table[va]; }
+this.rawget = function rawget(table, prop) { return table[prop]; }
+this.rawset = function rawset(table, prop, val) { return table[prop] = val; }
 
-this.rawget = function rawget(table) {
+this.something = function something(table) {
 	var array = [];
 	var idx = 1;
 	while ( table[idx] !== undefined ) {
@@ -323,3 +324,5 @@ this.setmetatable = function setmetatable(target, meta) {
 this.getmetatable = function getmetatable(taget, meta) {
 	return taget.__metatable;
 }
+
+var __lua = this.__lua;

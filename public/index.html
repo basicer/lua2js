@@ -96,6 +96,7 @@
           <div class="col-sm-6">
             <div class="checkbox"><label><input type="checkbox" ng-model="opts.forceVar"> Force 'var' instead of 'let'</label></div>
             <div class="checkbox"><label><input type="checkbox" ng-model="opts.luaOperators"> Use library functions for operators</label></div>
+            <div class="checkbox"><label><input type="checkbox" ng-model="opts.encloseWithFunctions"> Enclose Scopes with Functions </label></div>
           </div>
           <div class="col-sm-6">
             <div class="checkbox"><label><input type="checkbox" ng-model="opts.decorateLuaObjects"> Decorate Lua objects</label></div>
@@ -126,7 +127,7 @@ function update($scope) {
 function main($scope) { 
   $scope.code = "";
   $scope.code2 = "{\n}";
-  $scope.opts = {forceVar: true, decorateLuaObjects: true, luaCalls: true, luaOperators: true };
+  $scope.opts = {forceVar: true, decorateLuaObjects: true, luaCalls: true, luaOperators: true, encloseWithFunctions: true };
 
   $scope.fix = function(c) { return c.reverse(); }
   $scope.aceLoaded = function(e) {

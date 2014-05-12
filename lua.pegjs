@@ -104,12 +104,17 @@
             vals.push(v.init);
             names.push(v.id);
         }
-        return {
-            expression: builder.callExpression(
-                builder.functionExpression(null, names, builder.blockStatement(body)),
-                vals
-            ),
-            type: "ExpressionStatement"
+
+        if ( opt("encloseWithFunctions", true) ) {
+            return {
+                expression: builder.callExpression(
+                    builder.functionExpression(null, names, builder.blockStatement(body)),
+                    vals
+                ),
+                type: "ExpressionStatement"
+            }
+        } else {
+            return builder.blockStatement([ builder.variableDeclaration("let", decls) ].concat(body));
         }
     },
     encloseDeclsUnpack: function(body, names, explist) {
@@ -501,9 +506,10 @@ WhileStatement =
 
 
 
+That = "that" { return { "type": "ThisExpression" }; }
 
 SimpleExpression = (
-    Literal / ResetExpression / FunctionExpression / CallExpression / Identifier /
+     Literal / ResetExpression / FunctionExpression / CallExpression / That / Identifier /
     ObjectExpression / UnaryExpression / ParenExpr )
 
 Expression = 
@@ -560,7 +566,7 @@ ResetExpression =
 
 
 funcname =
-    a:Identifier b:(ws? [.:] ws? Identifier)*
+    a:(That/Identifier) b:(ws? [.:] ws? Identifier)*
     {
         var selfSuggar = false;
         if ( b.length == 0 ) return a;
