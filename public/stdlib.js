@@ -2,6 +2,8 @@ var env = this;
 var __lua = (function() {
 
 	function type(what) {
+		if ( what === null || what === undefined ) return "nil";
+
 		var t = typeof what;
 		if ( t == "object" ) return "table";
 		return t;
@@ -57,7 +59,12 @@ var __lua = (function() {
 
 
 	
-	function eq(a,b) { return a === b; }
+	function eq(a,b) { 
+		if ( a === null || a === undefined ) {
+			return ( b === null || b === undefined );
+		}
+		return a === b; 
+	}
 	function ne(a,b) { return !eq(a,b); }
 
 	function count(a) { 
@@ -295,7 +302,7 @@ env.table = {
 		for ( var i = 0; i < arguments.length; ++i) {
 			obj[("" + (i + 1))] = arguments[i];
 		}
-		return this.__lua.makeTable(obj);
+		return __lua.makeTable(obj);
 	},
 	remove: null,
 	sort: function sort(table) { return table; },
