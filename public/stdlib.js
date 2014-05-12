@@ -19,11 +19,30 @@ this.__lua = (function() {
 		return n;
 	}
 
-	function add(a,b) { return numberForArith(a) + numberForArith(b); }
+	function add(a,b) {
+		
+		var mtf = lookupMetaTable(a, "__add");
+		if ( mtf !== null ) return mtf(a,b);
 
-	function sub(a,b) { return numberForArith(a) - numberForArith(b); }
+		return numberForArith(a) + numberForArith(b); 
+	}
 
-	function mul(a,b) { return numberForArith(a) * numberForArith(b); }
+	function sub(a,b) { 
+
+		var mtf = lookupMetaTable(a, "__sub");
+		if ( mtf !== null ) return mtf(a,b);
+
+		return numberForArith(a) - numberForArith(b);
+	}
+
+	function mul(a,b) { 
+
+		var mtf = lookupMetaTable(a, "__mul");
+		if ( mtf !== null ) return mtf(a,b);
+
+		return numberForArith(a) * numberForArith(b);
+
+	}
 
 	function pow(a,b) { return Math.pow(numberForArith(a),numberForArith(b)); }
 

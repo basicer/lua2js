@@ -656,7 +656,7 @@ ObjectExpression =
 
 field =
                                           /* Otherwise we think it might be a multi assignment */
-    n:(Literal/Identifier) ws? "=" ws? v:(MemberExpression/CallExpression/SimpleExpression/Expression) 
+    n:(Literal/Identifier) ws? "=" ws? v:(FunctionExpression/MemberExpression/CallExpression/SimpleExpression/Expression) 
     {
         return { key: n, value: v };
     }/
@@ -691,6 +691,11 @@ FunctionDeclaration =
 LocalFunction =
     "local" ws "function" ws? name:funcname ws? f:funcbody
     {
+
+        if ( f.rest ) {
+            bhelper.injectRest(f.body.body, f.params.length);
+        }
+
         if ( opt("allowRegularFunctions", false) )
             return builder.functionDeclaration(name, f.params, f.body);
 
