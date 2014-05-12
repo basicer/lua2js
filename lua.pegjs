@@ -66,7 +66,7 @@
     memberExpression: function(obj, prop, isComputed) { return wrapNode({ type:"MemberExpression", object: obj, property: prop, isComputed: isComputed }); },
     variableDeclaration: function(kind, decls) { return { type: "VariableDeclaration", declarations: decls, kind: opt("forceVar", true) ? "var" : kind } },
     functionExpression: function(name, args, body) { return { type: "FunctionExpression", body: body, params: args } },
-    returnStatement: function(arg) { return {type: "ReturnStatement", argument: arg}; }
+    returnStatement: function(arg) { return wrapNode({type: "ReturnStatement", argument: arg}); }
   };
 
   var i = function(n) { return { type: "Identifier", name: n}; }
@@ -531,7 +531,7 @@ Expression =
 
 
 unop = $("-" / "not" / "#")
-binop = $("+" / "-" / "==" / ">=" / "<=" / "~=" / ">" / "<" / ".." / "and" / "or" / "*" / "/" / "%" )
+binop = $("+" / "-" / "==" / ">=" / "<=" / "~=" / ">" / "<" / ".." / "and" / "or" / "*" / "/" / "%" / "^" )
 
 
 prefixexp =

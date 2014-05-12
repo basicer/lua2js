@@ -1,12 +1,31 @@
 this.__lua = (function() {
 
-	function add(a,b) { return a + b; }
+	function type(what) {
+		var t = typeof what;
+		if ( t == "object" ) return "table";
+		return t;
+	}
 
-	function sub(a,b) { return a - b; }
+	function numberForArith(n) {
 
-	function mul(a,b) { return a * b; }
+		if ( typeof n == "number" ) return n;
+		else if ( typeof n == "string" ) {
+			n = parseInt(n);
+		} else {
+			n = NaN;
+		}
 
-	function exp(a,b) { return Math.pow(a,b); }
+		if ( isNaN(n) ) throw "attempt to perform arithmetic on a " +  type(n) + " value";
+		return n;
+	}
+
+	function add(a,b) { return numberForArith(a) + numberForArith(b); }
+
+	function sub(a,b) { return numberForArith(a) - numberForArith(b); }
+
+	function mul(a,b) { return numberForArith(a) * numberForArith(b); }
+
+	function pow(a,b) { return Math.pow(numberForArith(a),numberForArith(b)); }
 
 	function concat(a,b) { return "" + a + b; }
 
@@ -17,8 +36,9 @@ this.__lua = (function() {
 	function gt(a,b) { return a > b; }
 
 
-	function ne(a,b) { return a !== b; }
+	
 	function eq(a,b) { return a === b; }
+	function ne(a,b) { return !eq(a,b); }
 
 	function count(a) { 
 		if ( a instanceof LuaTable ) {
@@ -67,14 +87,26 @@ this.__lua = (function() {
 	};
 	Object.defineProperty(LuaReturnValues.prototype, "__luaType",  {value: "returnValues",  enumerable: false});
 
+	function lookupMetaTable(table, entry) {
+		if ( table instanceof LuaTable ) {
+			if ( table.__metatable === undefined ) return null;
+
+			var idx = table.__metatable[entry];
+			if ( idx === null || idx === undefined ) return null;
+
+			return idx;
+		}
+
+		return null;
+	}
+
 	function index(table, prop) {
 		if ( table instanceof LuaTable ) {
 			var val = table[prop];
 			if ( val !== null & val !== undefined ) return val;
-			if ( table.__metatable === undefined ) return null;
 
-			var idx = table.__metatable.__index;
-			if ( idx === null || idx === undefined ) return null;
+			var idx = lookupMetaTable(table, "__index");
+			if ( idx == null ) return null;
 
 			if ( typeof idx == "function" ) return oneValue(idx(table, prop));
 			return index(idx, prop);
@@ -177,7 +209,9 @@ this.__lua = (function() {
 		or: or,
 		expand: expand,
 		rest: rest,
-		pcall: pcall
+		pcall: pcall,
+		type: type,
+		pow: pow
 	}
 
 
@@ -269,10 +303,7 @@ this.assert = function assert(what, msg) {
 }
 
 this.type = function type(what) {
-	var t = typeof what;
-	if ( t == "object" ) return "table";
-	return t;
-
+	return this.__lua.type(what);
 }
 
 
