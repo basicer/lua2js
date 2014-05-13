@@ -750,17 +750,15 @@ LocalFunction =
         if ( opt("allowRegularFunctions", false) )
             return builder.functionDeclaration(name, f.params, f.body);
 
-        var decl = {type: "VariableDeclarator", id: name, init: builder.functionExpression(name, f.params, f.body)};
+        var func = builder.functionExpression(name, f.params, f.body);
+        if ( opt('decorateLuaObjects', false) ) {
+            func = bhelper.luaOperator("makeFunction", func);
+        }
+
+        var decl = {type: "VariableDeclarator", id: name, init: func};
         var out = builder.variableDeclaration("let", [ decl ]);
 
-        if ( opt('decorateLuaObjects', false) ) {
-            return [out,{type: "ExpressionStatement", expression: builder.assignmentExpression("=",
-                builder.memberExpression(decl.id, {type:"Identifier", name: "__luaType"}),
-                {type:"Literal", value: "function"}
-            )}];
-        } else {
-            return out;
-        }
+        return out;
     }
 
 FunctionExpression = 
