@@ -83,9 +83,20 @@ var __lua = (function() {
 
 	function call(flags, what, that /*, args... */ ) {
 		var injectSelf = !!(flags & 1); 
+		var detectLua = !!(flags & 2); 
+
+
 		var args = expand(Array.prototype.slice.call(arguments, 3));
 
-		if ( injectSelf ) args.unshift(that);
+		var doInject = true;
+
+		if ( detectLua ) {
+			doInject = what.__luaType == "function";
+		}
+
+		if ( injectSelf && doInject ) {
+			args.unshift(that);
+		}
 		return what.apply(that, args);
 	}
 
@@ -118,6 +129,11 @@ var __lua = (function() {
 		}
 
 		return out;
+	}
+
+	function makeFunction(f) {
+		f.__luaType = "function";
+		return f;
 	}
 
 	function LuaReturnValues(v) {
@@ -244,6 +260,7 @@ var __lua = (function() {
 		indexAssign: indexAssign,
 		concat: concat,
 		makeTable: makeTable,
+		makeFunction: makeFunction,
 		expandReturnValues: expandReturnValues,
 		makeMultiReturn: makeMultiReturn,
 		count: count,
@@ -337,7 +354,7 @@ env.os = {
 }
 
 env.io = {
-	write: function() { print(arguments); }
+	write: function() { env.print(arguments); }
 }
 
 env.error = function error(s) { throw s; }

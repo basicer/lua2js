@@ -65,7 +65,7 @@
     },
     memberExpression: function(obj, prop, isComputed) { return wrapNode({ type:"MemberExpression", object: obj, property: prop, isComputed: isComputed }); },
     variableDeclaration: function(kind, decls) { return { type: "VariableDeclaration", declarations: decls, kind: opt("forceVar", true) ? "var" : kind } },
-    functionExpression: function(name, args, body) { return { type: "FunctionExpression", body: body, params: args } },
+    functionExpression: function(name, args, body) { return { type: "FunctionExpression", name: name, body: body, params: args } },
     returnStatement: function(arg) { return wrapNode({type: "ReturnStatement", argument: arg}); }
   };
 
@@ -180,6 +180,10 @@
             var flags = 0;
             if ( callee.selfSuggar ) {
                 flags = flags | 1;
+            }
+
+            if ( opt('decorateLuaObjects', false) ) {
+                flags = flags | 2;
             }
 
             var flagso = {"type": "Literal", "value": flags};
@@ -712,18 +716,27 @@ FunctionDeclaration =
     "function" ws? name:funcname ws? f:funcbody
     {
 
-        if ( f.rest ) {
-            bhelper.injectRest(f.body.body, f.params.length);
-        }
 
-        if ( name.type != "MemberExpression" && opt("allowRegularFunctions", false) )
+
+        if ( name.type != "MemberExpression" && opt("allowRegularFunctions", false) ) {
+            //TODO: this would need to be decorated
             return builder.functionDeclaration(name, f.params, f.body);
+        }
 
         //TODO: Translate member expression into call
         var params = f.params.slice(0);
         if ( name.selfSuggar ) params = [{type: "Identifier", name: "self"}].concat(f.params);
 
-        return bhelper.assign(name, builder.functionExpression(null, params, f.body));
+        if ( f.rest ) {
+            bhelper.injectRest(f.body.body, params.length);
+        }
+
+        var out = builder.functionExpression(null, params, f.body)
+        if ( opt('decorateLuaObjects', false) ) {
+            out = bhelper.luaOperator("makeFunction", out);
+        }
+
+        return bhelper.assign(name, out);
     }
 
 LocalFunction =
@@ -737,9 +750,17 @@ LocalFunction =
         if ( opt("allowRegularFunctions", false) )
             return builder.functionDeclaration(name, f.params, f.body);
 
-        return builder.variableDeclaration("let", [
-            {type: "VariableDeclarator", id: name, init: builder.functionExpression(name, f.params, f.body)}
-        ]);
+        var decl = {type: "VariableDeclarator", id: name, init: builder.functionExpression(name, f.params, f.body)};
+        var out = builder.variableDeclaration("let", [ decl ]);
+
+        if ( opt('decorateLuaObjects', false) ) {
+            return [out,{type: "ExpressionStatement", expression: builder.assignmentExpression("=",
+                builder.memberExpression(decl.id, {type:"Identifier", name: "__luaType"}),
+                {type:"Literal", value: "function"}
+            )}];
+        } else {
+            return out;
+        }
     }
 
 FunctionExpression = 
@@ -757,7 +778,11 @@ FunctionExpression =
             bhelper.injectRest(f.body.body, f.params.length)
         }
 
-        return result;
+        if ( opt('decorateLuaObjects', false) ) {
+            return bhelper.luaOperator("makeFunction", result);
+        } else {
+            return result;
+        }
 
     }
 
