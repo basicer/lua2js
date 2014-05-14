@@ -217,12 +217,18 @@
             }
 
             var flagso = {"type": "Literal", "value": flags};
+            var helper = null;
             
+            if ( callee.type == "Identifier" ) helper = callee.name;
+            else if ( callee.type == "MemberExpression" && !callee.isComputed ) helper = callee.property.name;
+
+            helper = {"type": "Literal", "value": helper};
+
             if ( callee.selfSuggar ) {
                 if ( callee.object.type == "Identifier" ) {
                     //Dont bother making a function if we are just an identifer.
                     var rcallee = bhelper.translateExpressionIfNeeded(callee)
-                    return bhelper.luaOperator.apply(bhelper, ["call", flagso , rcallee, callee.object].concat(args));
+                    return bhelper.luaOperator.apply(bhelper, ["call", flagso , rcallee, callee.object, helper].concat(args));
 
                 } else {
                     var tmp = bhelper.tempVar(callee.object);
@@ -231,7 +237,7 @@
                     var rcallee = bhelper.translateExpressionIfNeeded(rexpr)
                     return bhelper.encloseDecls([
                         builder.returnStatement(
-                            bhelper.luaOperator.apply(bhelper, ["call", flagso, rcallee, tmp.id].concat(args))
+                            bhelper.luaOperator.apply(bhelper, ["call", flagso, rcallee, tmp.id, helper].concat(args))
                         )
                     ], tmp).expression;
                 }
@@ -240,7 +246,7 @@
                 if ( rcallee.type == "Identifier" && rcallee.name == "assert" ) {
                     args.push({type: "Literal", value: args[0].text || "?"})
                 }
-                return bhelper.luaOperator.apply(bhelper, ["call", flagso , rcallee, that].concat(args));
+                return bhelper.luaOperator.apply(bhelper, ["call", flagso , rcallee, that, helper].concat(args));
             }
         } else {
             return builder.callExpression(callee, args);
