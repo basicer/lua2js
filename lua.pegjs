@@ -319,7 +319,7 @@ StatatementList =
         return listHelper(a,b,1);
     } 
 
-ReservedWord = "if" / "then" / "else" / "do" / "end" / "return" / "local" / "nil" / "true" / "false"
+ReservedWord = "if" / "then" / "else" / "elseif" / "do" / "end" / "return" / "local" / "nil" / "true" / "false"
     "function" / "not" / "break" / "for" / "until" / "function" / binop / unop
 
 Name = !(ReservedWord (ws / !.)) a:$([a-zA-Z_][a-zA-Z0-9_]*) { return a; }
@@ -519,11 +519,28 @@ ExpressionStatement =
     } }
 
 
+elseif = "elseif" ws test:Expression ws "then" ws then:BlockStatement { return wrapNode({test: test, then:then}); }
+
 IfStatement =
-    start:if ws test:Expression ws ("then" / &{ return eUnterminated("if","then"); } ) ws then:BlockStatement elze:( ws? "else" ws BlockStatement )? ws? end:("end"/) &{ return eUntermIfEmpty(end, "if", "end", start); }
+    start:if ws test:Expression ws 
+    ("then" / &{ return eUnterminated("if","then"); } ) ws then:BlockStatement 
+    elzeifs:( ws? elseif )* 
+
+    elze:( ws? "else" ws BlockStatement )? ws? end:("end"/) &{ return eUntermIfEmpty(end, "if", "end", start); }
+    
+
     {
         var result = { type: "IfStatement", test: test, consequent: then, loc: loc(), range: range()}
-        if ( elze !== null ) result.alternate = elze[3];
+        var last = result;
+
+        for ( var idx in elzeifs ) {
+            var elif = elzeifs[idx][1];
+            var nue = { type: "IfStatement", test: elif.test, consequent: elif.then, loc: elif.loc, range: elif.range }
+            last.alternate = nue;
+            last = nue;
+        }
+
+        if ( elze !== null ) last.alternate = elze[3];
         return result;
     }
 
