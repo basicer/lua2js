@@ -104,7 +104,17 @@
         if ( target.type == "MemberExpression" && opt("luaOperators", false) ) {
             var prop = target.property;
             if ( !target.isComputed ) prop = {"type": "Literal", "value": prop.name, loc: prop.loc, range: prop.range };
-            var nue = bhelper.luaOperator("indexAssign", bhelper.translateExpressionIfNeeded(target.object), prop, exp);
+            
+            var helper;
+            var nue = bhelper.translateExpressionIfNeeded(target.object);
+
+            if ( target.object.type == "Identifier" ) helper = target.object.name;
+
+            if ( helper === undefined ) {
+                nue = bhelper.luaOperator("indexAssign", nue, prop, exp);
+            } else {
+                nue = bhelper.luaOperator("indexAssign", nue, prop, exp, {type:"Literal", value: helper});
+            }
 
             nue.origional = out;
             out = nue;
@@ -238,7 +248,14 @@
     },
     memberExpression: function(obj, prop, isComputed) {
         if ( opt("luaOperators", false) && !isComputed ) {
-            return bhelper.luaOperator("index", obj, prop);
+            var helper;
+            if ( obj.type == "Identifier") helper = obj.name;
+
+            if ( helper == undefined ) {
+                return bhelper.luaOperator("index", obj, prop);
+            } else {
+                return bhelper.luaOperator("index", obj, prop, {type:"Literal", value: helper});
+            }
         }
         return builder.memberExpression(obj, prop, isComputed);
     },

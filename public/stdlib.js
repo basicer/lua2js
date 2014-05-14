@@ -154,7 +154,15 @@ var __lua = (function() {
 		return null;
 	}
 
-	function index(table, prop) {
+	function index(table, prop, helper) {
+		if ( table === null || table === undefined || typeof table == "number" ) {
+			if ( helper == undefined ) {
+				throw "attempt to index a nil value";
+			} else {
+				throw "attempt to index '" + helper + "' (a " + type(table) + " value)";
+			}
+		}
+
 		if ( table instanceof LuaTable ) {
 			var val = table[prop];
 			if ( val !== null & val !== undefined ) return val;
@@ -171,7 +179,16 @@ var __lua = (function() {
 		}
 	}
 
-	function indexAssign(table, prop, value) {
+	function indexAssign(table, prop, value, helper) {
+
+		if ( table === null || table === undefined || typeof table == "number" ) {
+			if ( helper == undefined ) {
+				throw "attempt to index a nil value";
+			} else {
+				throw "attempt to index '" + helper + "' (a " + type(table) + " value)";
+			}
+		}
+
 		if ( table instanceof LuaTable ) {
 			var val = table[prop];
 			if ( val !== null & val !== undefined ) {
