@@ -2,3 +2,4 @@ syntax: glob
 
 node_modules
 public/ui-ace.js
+dist/*

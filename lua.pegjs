@@ -23,6 +23,26 @@
     return obj;
   }
 
+  function eUntermIfEmpty(what, type, end, start) {
+    if ( what.length == 0 ) return eUnterminated(type, end, start);
+    return true;
+  }
+
+  function eUnterminated(type, end, start) {
+    var xline = start !== undefined ? start.loc.start.line : (line());
+    var xcol = start !== undefined ? start.loc.start.column : (column());
+
+    eMsg("`" + (end || "end") + "` expected (to close " + type + " at " + xline + ":" + xcol + ") at " + line() +  ":" + column() );
+    return true;
+  }
+
+  function eMsg(why) {
+    if ( !!!opt("loose", false) ) error(why);
+    return true;
+  }
+
+  options["loose"] = false;
+
   var opPrecedence = {
     "^": 10,
     "not": 9,
@@ -274,7 +294,7 @@ StatatementList =
         if ( a === null ) return [];
         if ( b === null ) return a;
         return listHelper(a,b,1);
-    }
+    } 
 
 ReservedWord = "if" / "then" / "else" / "do" / "end" / "return" / "local" / "nil" / "true" / "false"
     "function" / "not" / "break" / "for" / "until" / "function" / binop / unop
@@ -322,17 +342,24 @@ Statement =
     LocalAssingment /
     FunctionDeclaration /
     LocalFunction /
-    DoEndGrouped 
+    DoEndGrouped
     ) 
 
 Debugger = 
     "debugger"
     { return {type: "ExpressionStatement", expression: {type: "Identifier", name:"debugger; "} } }
 
-DoEndGrouped = "do" ws? b:BlockStatement ws? "end" { return b }
+DoEndGrouped = 
+    start:do ws? b:BlockStatement ws? end:("end"/) & { return eUntermIfEmpty(end, "do", "end", start); }
+    { return b }
+
+if = "if" { return wrapNode({}); }
+do = "do" { return wrapNode({}); }
+for = "for" { return wrapNode({}); }
+function = "function" { return wrapNode({}); }
 
 NumericFor =
-    "for" ws a:Identifier ws? "=" ws? b:Expression ws? "," ws? c:Expression d:( ws? "," ws? Expression )? ws? "do" ws? body:BlockStatement ws? "end"
+    start:for ws a:Identifier ws? "=" ws? b:Expression ws? "," ws? c:Expression d:( ws? "," ws? Expression )? ws? "do" ws? body:BlockStatement ws? end:("end"/) &{ return eUntermIfEmpty(end, "for", "end", start); } 
     {
         var amount = d == null ? {type: "Literal", value: 1 } : d[3];
         
@@ -362,7 +389,7 @@ NumericFor =
     }
 
 ForEach =
-    "for" ws a:namelist ws "in" ws b:explist ws "do" ws? c:BlockStatement ws? "end"
+    start:for ws a:namelist ws "in" ws b:explist ws "do" ws? c:BlockStatement ws? end:("end"/) & { return eUntermIfEmpty(end, "for", "end", start); } 
     {
         var statements = [];
         var nil = {type: "Literal", value: null };
@@ -470,7 +497,7 @@ ExpressionStatement =
 
 
 IfStatement =
-    "if" ws test:Expression ws "then" ws then:BlockStatement elze:( ws? "else" ws BlockStatement )? ws? "end" 
+    start:if ws test:Expression ws ("then" / &{ return eUnterminated("if","then"); } ) ws then:BlockStatement elze:( ws? "else" ws BlockStatement )? ws? end:("end"/) &{ return eUntermIfEmpty(end, "if", "end", start); }
     {
         var result = { type: "IfStatement", test: test, consequent: then, loc: loc(), range: range()}
         if ( elze !== null ) result.alternate = elze[3];
@@ -508,7 +535,7 @@ ReturnStatement =
     }
 
 WhileStatement =
-    "while" ws test:Expression ws "do" ws body:BlockStatement ws "end" 
+    "while" ws test:Expression ws "do" ws body:BlockStatement ws ( "end" / & { return eUnterminated("if"); } ) 
     { return {
         type: "WhileStatement",
         test: test,
@@ -520,7 +547,7 @@ WhileStatement =
 
 
 RepeatUntil =
-    "repeat" ws body:BlockStatement ws? "until" ws  test:Expression
+    "repeat" ws body:BlockStatement ws? ( "until" / & { return eUnterminated("repeat", "until"); } )  ws  test:( Expression / &{return eMsg("repeat until needs terminations criteria"); })
     { return {
         type: "DoWhileStatement",
         test: { 
@@ -569,7 +596,7 @@ prefixexp =
     funcname / '(' ws? e:Expression ws? ')' { return e; }
 
 CallExpression = 
-    who:prefixexp a:(ws? (":" Identifier )? callsuffix)+
+    !("function" ws? "(") who:prefixexp a:(ws? (":" Identifier )? callsuffix)+
     {
         var left = who
         for ( var idx = 0; idx < a.length; ++idx ) {
@@ -611,10 +638,10 @@ funcname =
     }
 
 explist = 
-    a:Expression b:(ws? "," ws? e:Expression)*
+    a:Expression b:(ws? "," ws? e:(Expression / &{ return eMsg("Malformed argument list."); } ))*
     {
          return listHelper(a,b,3); 
-    } 
+    }
 
 varlist = 
 a:var b:(ws? "," ws? e:var)*
@@ -629,11 +656,11 @@ namelist =
     } 
 
 args =
-    "(" ws? a:explist ws? ")"
+    "(" ws? a:explist ws? (")" / &{return eUnterminated(")", "argument list"); })
     {
          return a; 
     } /
-    "(" ws? ")"
+    "(" ws? (")" / &{return eUnterminated(")", "argument list"); })
     {
         return []
     }
@@ -713,7 +740,7 @@ field =
 
 
 FunctionDeclaration =
-    "function" ws? name:funcname ws? f:funcbody
+    start:function ws? name:funcname ws? f:funcbody ws? end:("end"/) & { return eUntermIfEmpty(end, "function", "end", start); }
     {
 
 
@@ -740,7 +767,7 @@ FunctionDeclaration =
     }
 
 LocalFunction =
-    "local" ws "function" ws? name:funcname ws? f:funcbody
+    "local" ws start:function ws? name:funcname ws? f:funcbody ws? end:("end"/) & { return eUntermIfEmpty(end, "function", "end", start); }
     {
 
         if ( f.rest ) {
@@ -759,7 +786,7 @@ LocalFunction =
         var out = builder.variableDeclaration("let", [ decl ]);
 
         return out;
-    }
+    } 
 
 FunctionExpression = 
     f:funcdef 
@@ -785,17 +812,17 @@ FunctionExpression =
     }
 
 funcdef = 
-    "function" ws? b:funcbody { return b; }
+    start:function ws? b:funcbody ws? end:("end"/) & { return eUntermIfEmpty(end, "function", "end", start); } { return b; }
 
 funcbody = 
-    "(" ws? p:paramlist ws? rest:("," ws? "..." ws?)? ")" ws? body:BlockStatement ws? "end"
+    "(" ws? p:paramlist ws? rest:("," ws? "..." ws?)? ")" ws? body:BlockStatement
     {
         return { params: p, body: body, rest: rest != null }
     } /
-    "(" ws? "..." ws? ")" ws? body:BlockStatement ws? "end"
+    "(" ws? "..." ws? ")" ws? body:BlockStatement
     {
         return { params: [], body: body, rest: true }
-    } 
+    }
 
 paramlist = 
     a:Identifier ws? b:("," ws? Identifier)*
