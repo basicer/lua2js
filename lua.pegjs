@@ -875,7 +875,7 @@ paramlist =
 
 
 UnaryExpression =
-    o:unop ws? e:Expression
+    o:unop ws? e:(MemberExpression/SimpleExpression/Expression)
     { 
         var ops = {"not": "!", "-": "-", "#": "#" }
         if ( o == "#" ) return bhelper.luaOperator("count", e);
