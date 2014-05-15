@@ -6,7 +6,7 @@
 
 -- Need to fix floating point dif between JS/Lua
 function trim(x)
-        return ( math.floor(x * 1000000) ) / 1000000.0
+        return ( math.floor(x * 100000) ) / 100000.0
 end
 
 

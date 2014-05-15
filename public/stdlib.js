@@ -10,7 +10,7 @@ var __lua = (function() {
 	}
 
 	function numberForArith(n) {
-
+		if ( isNaN(n) ) return n;
 		if ( typeof n == "number" ) return n;
 		else if ( typeof n == "string" ) {
 			n = parseInt(n);

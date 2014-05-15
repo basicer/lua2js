@@ -397,10 +397,12 @@ NumericFor =
     {
         var amount = d == null ? {type: "Literal", value: 1 } : d[3];
         
+        var start = bhelper.tempVar(b);
         var updateBy = bhelper.tempVar(amount);
         var testValue = bhelper.tempVar(c);
 
         var update = builder.assignmentExpression("=", a, bhelper.binaryExpression("+", a, updateBy.id));
+
 
 
         var out = {
@@ -409,7 +411,7 @@ NumericFor =
                 {
                     type: "VariableDeclarator",
                     id: a,
-                    init: b,
+                    init: start.id,
                 }
             ]),
             body: body,
@@ -419,7 +421,15 @@ NumericFor =
             range: range()
         };
 
-        return bhelper.encloseDecls([out], updateBy, testValue);
+         var sanity = {
+            type: "IfStatement",
+            test: builder.binaryExpression("<", {type: "Literal", value: 0}, 
+                builder.binaryExpression("*", builder.binaryExpression("-", testValue.id, start.id), updateBy.id)
+                ),
+            consequent: out
+        }
+
+        return bhelper.encloseDecls([sanity], start, updateBy, testValue);
     }
 
 ForEach =
@@ -456,7 +466,7 @@ ForEach =
             assign,
             { type: "IfStatement", test: builder.binaryExpression("===", v1, nil), consequent: {type: "BreakStatement" } },
             bhelper.assign(curent, v1),
-            bhelper.encloseDecls(c.body) //TODO: We could just unpack c here.
+            c.body
 
             ])
         });

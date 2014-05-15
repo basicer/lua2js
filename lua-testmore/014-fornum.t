@@ -26,6 +26,7 @@ See "Programming in Lua", section 4.3 "Control Structures".
 =cut
 
 --]]
+local jit = false
 
 print("1..36")
 
