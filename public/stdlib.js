@@ -3,14 +3,13 @@ var __lua = (function() {
 
 	function type(what) {
 		if ( what === null || what === undefined ) return "nil";
-
+		if ( isNan(what) ) return "number";
 		var t = typeof what;
 		if ( t == "object" ) return "table";
 		return t;
 	}
 
 	function numberForArith(n) {
-		if ( isNaN(n) ) return n;
 		if ( typeof n == "number" ) return n;
 		else if ( typeof n == "string" ) {
 			n = parseInt(n);
