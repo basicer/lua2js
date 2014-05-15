@@ -94,6 +94,9 @@
   var tmpVarCtr = 0;
 
   var bhelper = {
+    blockStatement: function(body) {
+        return builder.blockStatement(expandMultiStatements(body));
+    },
     tempName: function() {
         return i("__lua$tmpvar$" + (++tmpVarCtr));
     },
@@ -139,13 +142,14 @@
         if ( opt("encloseWithFunctions", true) ) {
             return {
                 expression: builder.callExpression(
-                    builder.functionExpression(null, names, builder.blockStatement(body)),
+                    builder.functionExpression(null, names, bhelper.blockStatement(body)),
                     vals
                 ),
                 type: "ExpressionStatement"
             }
         } else {
-            return builder.blockStatement([ builder.variableDeclaration("let", decls) ].concat(body));
+            if ( decls.length < 1 ) return body;
+            return bhelper.blockStatement([ builder.variableDeclaration("let", decls) ].concat(body));
         }
     },
     encloseDeclsUnpack: function(body, names, explist) {
@@ -448,7 +452,7 @@ ForEach =
         statements.push({
             type: "WhileStatement",
             test: {type: "Literal", value: true},
-            body: builder.blockStatement([
+            body: bhelper.blockStatement([
             assign,
             { type: "IfStatement", test: builder.binaryExpression("===", v1, nil), consequent: {type: "BreakStatement" } },
             bhelper.assign(curent, v1),
