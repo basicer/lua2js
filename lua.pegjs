@@ -674,18 +674,30 @@ ResetExpression =
     }
 
 
+
+
 funcname =
-    a:(That/Identifier) b:(ws? [.:] ws? Identifier)*
+    a:(That/Identifier) b:( funcnamesuffix )*
     {
         var selfSuggar = false;
         if ( b.length == 0 ) return a;
         var left = a;
         for ( var i in b ) {
-            left = builder.memberExpression(left, b[i][3], false);
-            if ( b[i][1] == ':' ) left.selfSuggar = true;
+            left = builder.memberExpression(left, b[i].exp, b[i].isComputed);
+            if ( b[i].suggar ) left.selfSuggar = true;
         }
 
         return left;
+    }
+
+funcnamesuffix = 
+    ws? p:[.:] ws? e:Identifier 
+    {
+        return {exp: e, suggar: p == ':', isComputed: false }
+    } /
+    ws? "[" ws? e:Expression ws? "]"
+    {
+        return {exp: e, suggar: false, isComputed: true }
     }
 
 explist = 
@@ -721,9 +733,9 @@ var = MemberExpression / Identifier
 MemberExpression = 
     a:(CallExpression/SimpleExpression) b:indexer c:indexer*
     { 
-        var left = builder.memberExpression(a,b[0],b[1]);
+        var left = builder.memberExpression(a, b[0], b[1]);
         for ( var idx in c ) {
-            left = builder.memberExpression(left,c[idx][0], c[idx][1]);
+            left = builder.memberExpression(left, c[idx][0], c[idx][1]);
         }
         return left;
     } 
@@ -893,7 +905,7 @@ UnaryExpression =
         return { 
             type: "UnaryExpression",
             operator: ops[o],
-            argument: e,
+            argument: bhelper.translateExpressionIfNeeded(e),
             prefix: true,
             loc: loc(),
             range: range()
