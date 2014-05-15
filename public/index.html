@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -34,7 +35,7 @@
       <style>
       .ace_editor { height: 500px; background-color: black; }
       textarea { width:100%; height: 100px; font-size: 14pt }
-      .x { padding: 10px; color: red !important; }
+      .x { padding: 10px; color: white !important; }
       .footer { margin-top: 20px; }
       .modal-body hr { margin-top: 0; margin-bottom: 0; }
       </style>
@@ -72,9 +73,8 @@
         onLoad: aceLoaded2,
         onChange: aceChanged2
       }"></div>
-      <div ng-show="error != ''" class="x ace_editor ace_dark ace-twilight">
-        {{error}}
-      </div>
+      <pre ng-show="error != ''" class="x ace_editor ace_dark ace-twilight">{{error}}
+      </pre>
     </div>
   </div>
   <div class="footer">
@@ -96,19 +96,29 @@
           <div class="col-sm-6">
             <div class="checkbox"><label><input type="checkbox" ng-model="opts.forceVar"> Force 'var' instead of 'let'</label></div>
             <div class="checkbox"><label><input type="checkbox" ng-model="opts.luaOperators"> Use library functions for operators</label></div>
-            <div class="checkbox"><label><input type="checkbox" ng-model="opts.encloseWithFunctions"> Enclose Scopes with Functions </label></div>
           </div>
           <div class="col-sm-6">
             <div class="checkbox"><label><input type="checkbox" ng-model="opts.decorateLuaObjects"> Decorate Lua objects</label></div>
             <div class="checkbox"><label><input type="checkbox" ng-model="opts.luaCalls"> Proxy function calls </label></div>
           </div>
         </div>
+        
+        <h5>Error Handeling</h5>
+        <hr />
+        <div class="row">
+          <div class="col-sm-6">
+            <div class="checkbox"><label><input type="checkbox" ng-model="opts.loose"> Loose Mode</label></div>
+          </div>
+          <div class="col-sm-6">
+          </div>
+        </div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
-      </div>
-    </div><!-- /.modal-content -->
-  </div><!-- /.modal-dialog -->
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
+    </div>
+  </div><!-- /.modal-content -->
+</div><!-- /.modal-dialog -->
 </div><!-- /.modal -->
 <script type="text/javascript">
 var myAppModule = angular.module('MyApp', ['ui.ace']);
@@ -127,7 +137,7 @@ function update($scope) {
 function main($scope) { 
   $scope.code = "";
   $scope.code2 = "{\n}";
-  $scope.opts = {forceVar: true, decorateLuaObjects: true, luaCalls: true, luaOperators: true, encloseWithFunctions: true };
+  $scope.opts = {forceVar: true, decorateLuaObjects: true, luaCalls: true, luaOperators: true };
 
   $scope.fix = function(c) { return c.reverse(); }
   $scope.aceLoaded = function(e) {
@@ -138,7 +148,13 @@ function main($scope) {
   };
   $scope.xeval = function() {
     update($scope);
-    eval($scope.code2);
+    try { 
+      stdout = "Output:\n"
+      eval($scope.code2);
+    } catch ( e ) {
+      stdout = "Error:\n" + e;
+    }
+    $scope.error = stdout;
   }
   $scope.$watch('opts', function() {
     update($scope);

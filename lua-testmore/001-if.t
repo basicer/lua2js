@@ -1,4 +1,4 @@
--- #! /usr/bin/lua
+#! /usr/bin/lua
 --
 -- lua-TestMore : <http://fperrad.github.com/lua-TestMore/>
 --

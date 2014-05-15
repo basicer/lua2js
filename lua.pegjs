@@ -2,7 +2,7 @@
   function loc() { return {start: { line: line(), column: column() } } }
   function range() { return [offset(), offset() + text().length]; }
   function listHelper(a,b,c) { return [a].concat(b.map(function(b) { return b[c || 2]; })); }
-  function opt(name, def) { return options[name] === undefined ? def : options[name] }
+  function opt(name, def) { return name in options ? options[name] : def }
 
   function expandMultiStatements(list) {
     var out = [];
@@ -37,11 +37,12 @@
   }
 
   function eMsg(why) {
-    if ( !!!opt("loose", false) ) error(why);
+    console.log(why);
+    if ( !opt("loose", false) ) error(why);
     return true;
   }
 
-  options["loose"] = false;
+  options["loose"] = true;
 
   var opPrecedence = {
     "^": 10,
@@ -295,7 +296,7 @@
 
 }
 
-start = ws? t:BlockStatement ws? { return t; }
+start = ("#" [^\n]* "\n")? ws? t:BlockStatement ws? { return t; }
 
 ws = ([ \r\t\n] / "--[" balstringinsde "]"  / ("--" ( [^\n]* "\n" / .* ) )) +
 
@@ -342,9 +343,12 @@ stringchar =
     "\\" { error('Invalid Escape Sequence') } / 
     $[^'"'] 
 
+singlequote = ['] { return wrapNode({}); }
+doublequote = ["] { return wrapNode({}); }
+
 String =
-    "\"" r:(stringchar/"'") * "\"" { return r.join(''); } /
-    "'" r:(stringchar/'"') * "'" { return r.join(''); } / 
+    s:doublequote r:(stringchar/"'") * e:(doublequote/) &{ return eUntermIfEmpty(e,"string","\"",s); } { return r.join(''); } /
+    s:singlequote r:(stringchar/'"') * e:(singlequote/) &{ return eUntermIfEmpty(e,"string","'",s); } { return r.join(''); } / 
     "[" s: balstringinsde "]" { return s; }
 
 balstringinsde =
@@ -365,7 +369,10 @@ Statement =
     LocalAssingment /
     FunctionDeclaration /
     LocalFunction /
-    DoEndGrouped
+    DoEndGrouped /
+    !(ws? ReservedWord) e:$Expression &{ return eMsg("Found an expression but expected a statement: " + e)} { return builder.emptyStatement(); } /
+    !(ws? ReservedWord) e:$Identifier &{ return eMsg("`=` expected")} { return builder.emptyStatement(); } /
+    !(ws? ReservedWord) e:$[^\n\t\r ] [^\n]* ([\n]/!.) &{ return eMsg("Parser error near `" + e + "`"); } { return builder.emptyStatement(); }
     ) 
 
 Debugger = 

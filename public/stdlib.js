@@ -54,8 +54,8 @@ var __lua = (function() {
 	function lte(a,b) { return a <= b; }
 	function lt(a,b) { return a < b; }
 
-	function gte(a,b) { return a >= b; }
-	function gt(a,b) { return a > b; }
+	function gte(a,b) { return lte(b,a); }
+	function gt(a,b) { return lt(b,a); }
 
 
 	
@@ -63,8 +63,10 @@ var __lua = (function() {
 		if ( a === null || a === undefined ) {
 			return ( b === null || b === undefined );
 		}
-		return a === b; 
+		if ( a === b ) return true;
+		return false;
 	}
+	
 	function ne(a,b) { return !eq(a,b); }
 
 	function count(a) { 
