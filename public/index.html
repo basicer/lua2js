@@ -96,6 +96,7 @@
           <div class="col-sm-6">
             <div class="checkbox"><label><input type="checkbox" ng-model="opts.forceVar"> Force 'var' instead of 'let'</label></div>
             <div class="checkbox"><label><input type="checkbox" ng-model="opts.luaOperators"> Use library functions for operators</label></div>
+            <div class="checkbox"><label><input type="checkbox" ng-model="opts.encloseWithFunctions"> Enclose scopes in functions</label></div>
           </div>
           <div class="col-sm-6">
             <div class="checkbox"><label><input type="checkbox" ng-model="opts.decorateLuaObjects"> Decorate Lua objects</label></div>
@@ -121,6 +122,13 @@
 </div><!-- /.modal-dialog -->
 </div><!-- /.modal -->
 <script type="text/javascript">
+
+
+  this.print = function print() { 
+    stdout += Array.prototype.join.apply(arguments, ["\t"]) + "\n";
+    console.log.apply(console, arguments); 
+  }
+
 var myAppModule = angular.module('MyApp', ['ui.ace']);
 function update($scope) {
   try {
@@ -135,9 +143,15 @@ function update($scope) {
 }
 
 function main($scope) { 
+
+  this.print = function print() { 
+    stdout += Array.prototype.join.apply(arguments, ["\t"]) + "\n";
+    console.log.apply(console, arguments); 
+  }
+
   $scope.code = "";
   $scope.code2 = "{\n}";
-  $scope.opts = {forceVar: true, decorateLuaObjects: true, luaCalls: true, luaOperators: true };
+  $scope.opts = {forceVar: true, decorateLuaObjects: true, luaCalls: true, luaOperators: true, encloseWithFunctions: false };
 
   $scope.fix = function(c) { return c.reverse(); }
   $scope.aceLoaded = function(e) {
