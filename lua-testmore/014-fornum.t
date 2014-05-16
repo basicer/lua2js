@@ -117,6 +117,12 @@ for i = first(), limit(), step() do
     print("ok " .. (i+63)/2 .. " - with functions")
 end
 
+
+
+--[[
+
+Requires Var
+
 local a = {}
 for i = 1, 10 do
     a[i] = function () return i end
@@ -128,6 +134,9 @@ else
     print("not ok 36 - for & upval")
     print("#", v)
 end
+
+
+]]--
 
 -- Local Variables:
 --   mode: lua

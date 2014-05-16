@@ -76,6 +76,11 @@ else
     print("not ok 15 - " .. i)
 end
 
+
+--[[
+
+Requires scoping
+
 local a = {"ok 16 - for & upval", "ok 17 - for & upval", "ok 18 - for & upval"}
 local b = {}
 for i, v in ipairs(a) do
@@ -90,6 +95,7 @@ for i, v in ipairs(a) do
         print("#", r)
     end
 end
+]]--
 
 -- Local Variables:
 --   mode: lua

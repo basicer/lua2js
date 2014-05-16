@@ -395,39 +395,47 @@ NumericFor =
     {
         var amount = d == null ? {type: "Literal", value: 1 } : d[3];
         
+
         var start = bhelper.tempVar(b);
         var updateBy = bhelper.tempVar(amount);
         var testValue = bhelper.tempVar(c);
+        var idx = bhelper.tempVar();
 
-        var update = builder.assignmentExpression("=", a, bhelper.binaryExpression("+", a, updateBy.id));
+        var update = builder.assignmentExpression("=", idx.id, bhelper.binaryExpression("+", idx.id, updateBy.id));
+
+        var texp;
+        if ( false ) {
+            texp = bhelper.binaryExpression("<=", idx.id, testValue.id)
+        } else {
+            texp = bhelper.luaOperator("forcomp", updateBy.id, idx.id, testValue.id);
+        }
 
 
+        body.body.unshift(builder.variableDeclaration("let",[
+            {
+                    type: "VariableDeclarator",
+                    id: a,
+                    init: idx.id
+            }
+        ]));
 
         var out = {
             type: "ForStatement",
             init: builder.variableDeclaration("let", [
                 {
                     type: "VariableDeclarator",
-                    id: a,
+                    id: idx.id,
                     init: start.id,
                 }
             ]),
             body: body,
             update: update,
-            test: bhelper.binaryExpression("<=", a, testValue.id),
+            test: texp,
             loc: loc(),
             range: range()
         };
 
-         var sanity = {
-            type: "IfStatement",
-            test: builder.binaryExpression("<", {type: "Literal", value: 0}, 
-                builder.binaryExpression("*", builder.binaryExpression("-", testValue.id, start.id), updateBy.id)
-                ),
-            consequent: out
-        }
-
-        return bhelper.encloseDecls([sanity], start, updateBy, testValue);
+        return bhelper.encloseDecls([out], start, updateBy, testValue);
     }
 
 ForEach =
