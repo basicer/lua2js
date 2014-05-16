@@ -57,6 +57,12 @@ var __lua = (function() {
 	function gt(a,b) { return lt(b,a); }
 
 
+	function forcomp(d,a,b) { 
+		if ( d > 0 ) return a <= b; 
+		else if ( d < 0 ) return b <= a;
+		else return false;
+	}
+
 	
 	function eq(a,b) { 
 		if ( a === null || a === undefined ) {
@@ -328,7 +334,8 @@ var __lua = (function() {
 		type: type,
 		pow: pow,
 		isTable: isTable,
-		mark: mark
+		mark: mark,
+		forcomp: forcomp
 	}
 
 

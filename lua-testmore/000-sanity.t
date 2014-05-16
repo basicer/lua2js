@@ -43,7 +43,16 @@ j = f(i + 1)
 print("ok " .. j .. " - call f")
 k = g(i, 3)
 print("ok " .. k .. " - call g")
+
+
+--[[
+
+Requires let 
+
 local print = print
+
+]]--
+
 print("ok 9 - local")
 
 -- Local Variables:
