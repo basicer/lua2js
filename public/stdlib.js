@@ -1,16 +1,16 @@
-var env = this;
+var env = {};
 var __lua = (function() {
 
 	function type(what) {
 		if ( what === null || what === undefined ) return "nil";
-		if ( isNan(what) ) return "number";
+		if ( isNaN(what) ) return "number";
 		var t = typeof what;
 		if ( t == "object" ) return "table";
 		return t;
 	}
 
 	function numberForArith(n) {
-		if ( typeof n == "number" ) return n;
+		if ( type(n) == "number" ) return n;
 		else if ( typeof n == "string" ) {
 			n = parseInt(n);
 		} else {
@@ -70,9 +70,9 @@ var __lua = (function() {
 
 	function count(a) { 
 		if ( a instanceof LuaTable ) {
-			var count = 1;
-			while ( a[("" + count)] !== undefined ) ++count;
-			return count - 1;
+			var count = 0;
+			while ( a.numeric[count] !== undefined ) ++count;
+			return count;
 		}
 		return a.length;
 	}
@@ -102,6 +102,23 @@ var __lua = (function() {
 		if ( injectSelf && doInject ) {
 			args.unshift(that);
 		}
+
+		if ( detectLua && what.__luaType != "function" ) {
+			console.log("Calling non lua function");
+			var args2 = [];
+			for ( var i = 0; i < args.length; ++i ) {
+				var a = args[i];
+				if ( a instanceof LuaTable ) {
+					if ( a.numeric.length == 0 ) args2[i] = a.hash;
+					else if ( Object.keys(a.hash).length == 0 ) args2[i] = a.numeric;
+					else args2[i] = a;
+				} else {
+					args2[i] = a;
+				}
+			}
+			args = args2;
+		}
+
 		return what.apply(that, args);
 	}
 
@@ -112,26 +129,19 @@ var __lua = (function() {
 	}
 
 	function LuaTable() {
-		
+		this.numeric = [];
+		this.hash = {};
 	};
 
 	Object.defineProperty(LuaTable.prototype, "__luaType",  {value: "table",  enumerable: false});
 
-	function makeTable(t, extra) {
+	function makeTable(t, allowExpand /*, numeric ... */) {
 		var out = new LuaTable();
 		for ( var k in t ) {
-			out[k] = t[k];
+			out.hash[k] = t[k];
 		}
 
-		if ( extra !== undefined ) {
-			var i = 1;
-			while ( out[i] !== null && out[i] !== undefined ) ++i;
-			if ( extra instanceof LuaReturnValues ) {
-				for ( var j = 0; j < extra.values.length; ++j ) out[i+j] = extra.values[j];
-			} else {
-				out[i] = extra;
-			}
-		}
+		out.numeric = expand(Array.prototype.slice.call(arguments, 2), allowExpand);
 
 		return out;
 	}
@@ -150,7 +160,7 @@ var __lua = (function() {
 		if ( table instanceof LuaTable ) {
 			if ( table.__metatable === undefined ) return null;
 
-			var idx = table.__metatable[entry];
+			var idx = table.__metatable.hash[entry];
 			if ( idx === null || idx === undefined ) return null;
 
 			return idx;
@@ -169,7 +179,10 @@ var __lua = (function() {
 		}
 
 		if ( table instanceof LuaTable ) {
-			var val = table[prop];
+			var val;
+			if ( typeof prop == "number") val = table.numeric[prop-1];
+			else val = table.hash[prop];
+
 			if ( val !== null & val !== undefined ) return val;
 
 			var idx = lookupMetaTable(table, "__index");
@@ -195,14 +208,19 @@ var __lua = (function() {
 		}
 
 		if ( table instanceof LuaTable ) {
-			var val = table[prop];
+			var val;
+			if ( typeof prop == "number" ) val = table.numeric[prop-1];
+			else val = table.hash[prop];
+
 			if ( val !== null & val !== undefined ) {
-				table[prop] = value;
+				if ( typeof prop == "number") table.numeric[prop-1] = value;
+				table.hash[prop] = value;
 				return value;
 			}
 
 			if ( table.__metatable === undefined ) {
-				table[prop] = value;
+				if ( typeof prop == "number") table.numeric[prop-1] = value;
+				table.hash[prop] = value;
 				return value;
 			}
 
@@ -210,7 +228,9 @@ var __lua = (function() {
 
 			var idx = table.__metatable.__newindex;
 			if ( idx === null || idx === undefined ) {
-				table[prop] = value;
+				if ( typeof pop == "number") table.numeric[prop] = value;
+				table.hash[prop] = value;
+
 				return value;	
 			}
 
@@ -235,14 +255,16 @@ var __lua = (function() {
 		return new LuaReturnValues(expand(arguments));
 	}
 
-	function expand(what) {
+	function expand(what, allowExpand) {
+		if ( allowExpand === undefined ) allowExpand = false;
+
 		var out = [];
 		for ( var idx in what ) {
 			var v = what[idx];
 			if ( v instanceof LuaReturnValues ) {
 				for ( var i in v.values ) {
 					out.push(v.values[i]);
-					if ( idx < what.length - 1) break;
+					if ( idx < what.length - 1 || !allowExpand) break;
 				}
 			} else {
 				out.push(v);
@@ -252,7 +274,7 @@ var __lua = (function() {
 	}
 
 	function expandReturnValues() {
-		return expand(arguments);
+		return expand(arguments, true);
 	}
 
 	function pcall(what /*, args... */ ) {
@@ -265,6 +287,19 @@ var __lua = (function() {
 		}
 	}
 
+	function isTable(a) { return a instanceof LuaTable; }
+
+	function mark(o) {
+		var seen = [];
+		function domark(o) {
+			if ( o in seen ) return;
+			seen.push(o);
+			if ( typeof o == "object" ) for ( var idx in o ) domark(o[idx]);
+			else if ( typeof o == "function" ) o.__luaType = "function";
+			
+		}
+		domark(o);
+	}
 
 	return {
 		add: add,
@@ -292,7 +327,9 @@ var __lua = (function() {
 		rest: rest,
 		pcall: pcall,
 		type: type,
-		pow: pow
+		pow: pow,
+		isTable: isTable,
+		mark: mark
 	}
 
 
@@ -350,8 +387,14 @@ env.table = {
 		if ( j === undefined || j === null ) j = __lua.count(table);
 
 		var arr = [];
-		for ( var a = i; a <= j; ++a ) {
-			arr.push(table[a]);
+		if ( __lua.isTable(table) ) {
+			for ( var a = i; a <= j; ++a ) {
+				arr.push(table.numeric[a]);
+			}
+		} else {
+			for ( var a = i; a <= j; ++a ) {
+				arr.push(table[a]);
+			}			
 		}
 
 		return __lua.makeMultiReturn.apply(__lua, arr);
@@ -392,23 +435,45 @@ env.type = function type(what) {
 
 
 env.pairs = function pairs(table) {
-	return __lua.makeMultiReturn(env.next, table, null);
+	var list = [];
+	for ( var i = 0; i < table.numeric.length; ++i ) list.push([i + 1, table.numeric[i]]);
+	for ( var idx in table.hash ) list.push([idx, table.hash[idx]]);
+
+	return __lua.makeMultiReturn(function(handle, cur) {
+		if ( handle.length < 1 ) return null;
+		return __lua.makeMultiReturn.apply(__lua, handle.shift());
+	}, list, null);
 }
 
 env.ipairs = function ipairs(table) {
 	return __lua.makeMultiReturn(function ipairsitr(table, cur) {
 		cur = cur + 1;
-		if ( table[cur] === null || table[cur] === undefined ) return null;
-		return __lua.makeMultiReturn(cur, table[cur]);
+		if ( __lua.isTable(table) ) {
+			if ( table.numeric[cur-1] === null || table.numeric[cur-1] === undefined ) return null;
+			return __lua.makeMultiReturn(cur, table.numeric[cur-1]);
+		} else {
+			return table[cur-1];
+		}
 	}, table, null);
 }
 
 env.next = function next(table, cur) {
 	var next = ( cur === null || cur === undefined );
-	for ( var idx in table ) {
-		var v = table[idx];
-		if ( next ) return __lua.makeMultiReturn(idx, v);
-		next = ( idx == cur );
+	var t;
+	if (  __lua.isTable(table) ) {
+		if ( table.numeric.length > 0 && (next || (typeof cur == "number" && cur < table.numeric.length)) ) {
+			t = table.numeric;
+		}
+		else t = table.hash;
+	} else {
+		t = table;
+	}
+	for ( var idx in t ) {
+		var v = t[idx];
+		var sidx = idx;
+		if ( typeof sidx == "number" ) sidx = sidx + 1;
+		if ( next ) return __lua.makeMultiReturn(sidx, v);
+		next = ( idx === cur );
 	}
 	return null;
 }
@@ -440,4 +505,8 @@ env.getmetatable = function getmetatable(taget, meta) {
 	return taget.__metatable;
 }
 
+
+
+__lua.mark(env);
+for ( var idx in env ) this[idx] = env[idx];
 

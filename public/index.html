@@ -122,10 +122,6 @@
 <script type="text/javascript">
 
 
-  this.print = function print() { 
-    stdout += Array.prototype.join.apply(arguments, ["\t"]) + "\n";
-    console.log.apply(console, arguments); 
-  }
 
 var myAppModule = angular.module('MyApp', ['ui.ace']);
 function update($scope) {
@@ -142,10 +138,10 @@ function update($scope) {
 
 function main($scope) { 
 
-  this.print = function print() { 
+  this.print = __lua.makeFunction(function print() { 
     stdout += Array.prototype.join.apply(arguments, ["\t"]) + "\n";
     console.log.apply(console, arguments); 
-  }
+  });
 
   $scope.code = "";
   $scope.code2 = "{\n}";

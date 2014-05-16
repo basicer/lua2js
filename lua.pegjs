@@ -1,7 +1,7 @@
 {
   function loc() { return {start: { line: line(), column: column() } } }
   function range() { return [offset(), offset() + text().length]; }
-  function listHelper(a,b,c) { return [a].concat(b.map(function(b) { return b[c || 2]; })); }
+  function listHelper(a,b,c) { return a == null ? [] : [a].concat(b.map(function(b) { return b[c || 2]; })); }
   function opt(name, def) { return name in options ? options[name] : def }
 
   function expandMultiStatements(list) {
@@ -41,8 +41,6 @@
     if ( !opt("loose", false) ) error(why);
     return true;
   }
-
-  options["loose"] = true;
 
   var opPrecedence = {
     "^": 10,
@@ -239,7 +237,7 @@
                     var tmp = bhelper.tempVar(callee.object);
                     
                     var rexpr = builder.memberExpression(tmp.id, callee.property, callee.isComputed);
-                    var rcallee = bhelper.translateExpressionIfNeeded(rexpr)
+                    var rcallee = bhelper.translateExpressionIfNeeded(rexpr);
                     return bhelper.encloseDecls([
                         builder.returnStatement(
                             bhelper.luaOperator.apply(bhelper, ["call", flagso, rcallee, tmp.id, helper].concat(args))
@@ -452,11 +450,11 @@ ForEach =
 
         var call = builder.callExpression(iterator,[context, curent]);
         var assign;
-        if ( a.length > 1 ) {
+        //if ( a.length > 1 ) {
             assign = bhelper.bulkAssign(a, [call])
-        } else {
-            assign = bhelper.assign(v1, call);
-        }
+        //} else {
+        //    assign = bhelper.assign(v1, call);
+        //}
 
         statements.push(builder.variableDeclaration("let", varlist));
         statements.push({
@@ -518,8 +516,8 @@ LocalAssingment =
 AssignmentExpression =
     left:varlist ws? "=" ws? right:explist
     { 
-        if ( left.length < 2 ) return bhelper.assign(left[0], right[0]).expression;
-        else return bhelper.bulkAssign(left, right).expression;
+        // if ( left.length < 2 ) return bhelper.assign(left[0], right[0]).expression;
+        return bhelper.bulkAssign(left, right).expression;
     }
 
 BreakStatement = 
@@ -767,31 +765,36 @@ ObjectExpression =
             range: range()
         };
 
-
-        //TODO: Use listhelper here?
-        if ( f !== null ) {
-            if ( f.key === undefined ) f.key = {type: "Literal", value: 1, arrayLike: true};
-            f.kind = "init";
-            result.properties.push(f);
-        } 
-        
-        if ( s )
-        for ( var idx in s ) {
-            var v = s[idx][3];
-            if ( v.key === undefined ) v.key = {type: "Literal", value: 2 + parseInt(idx), arrayLike: true};
-            v.kind = "init";
-            result.properties.push(v);
+        var props = listHelper(f,s,3);
+        var numeric = 0;
+        for ( var idx in props ) {
+            var p = props[idx];
+            if ( p.key === undefined ) p.key = {type: "Literal", value: ++numeric, arrayLike: true};
+            p.kind = "init";
+            result.properties.push(p);
         }
 
 
         if ( opt('decorateLuaObjects', false) ) {
             var last;
-            if ( result.properties.length > 0 && result.properties[result.properties.length-1].key.arrayLike ) {
-                if ( result.properties[result.properties.length-1].value.type != "Literal") last = result.properties.pop();
+            var args = [];
+            var pp = [];
+            var last = true;
+            for ( var idx in result.properties ) {
+                var p = result.properties[idx];
+                if ( p.key.arrayLike ) {
+                    args.push(p.value);
+                    last = true;
+                } else {
+                    pp.push(p);
+                    last = false;
+                }
             }
+            result.properties = pp;
 
-            if ( last ) return bhelper.luaOperator("makeTable", result, last.value); 
-            else return bhelper.luaOperator("makeTable", result);
+            if (pp.length < 1 ) result = {type:"Literal", value: null};
+
+            return bhelper.luaOperator.apply(bhelper, ["makeTable", result, {type: "Literal", value:last}].concat(args)); 
         }
         else return result;
     }
