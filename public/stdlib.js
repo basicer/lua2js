@@ -412,6 +412,10 @@ env.table = {
 
 env.unpack = env.table.unpack;
 
+env.tonumber = function(n) {
+	return parseInt(n);
+}
+
 env.os = {
 	clock: null,
 	date: null,
