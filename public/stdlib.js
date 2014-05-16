@@ -514,5 +514,6 @@ env.getmetatable = function getmetatable(taget, meta) {
 
 
 __lua.mark(env);
+__lua.env = env;
 for ( var idx in env ) this[idx] = env[idx];
 
