@@ -104,7 +104,6 @@ var __lua = (function() {
 		}
 
 		if ( detectLua && what.__luaType != "function" ) {
-			console.log("Calling non lua function");
 			var args2 = [];
 			for ( var i = 0; i < args.length; ++i ) {
 				var a = args[i];
