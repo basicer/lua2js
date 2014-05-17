@@ -11,7 +11,7 @@ var exec = require('child_process').exec;
 function leval(src) {
     var AST;
     try { 
-        AST = parser.parse(src, {forceVar: !('function' === typeof Map), decorateLuaObjects: true, luaCalls: true, luaOperators: true });
+        AST = parser.parse(src, {forceVar: !('function' === typeof Map), decorateLuaObjects: true, luaCalls: true, luaOperators: true, encloseWithFunctions: false });
     } catch ( e ) {
         console.log(e);
         return e.toString();
