@@ -91,6 +91,10 @@
   var i = function(n) { return { type: "Identifier", name: n}; }
   var tmpVarCtr = 0;
 
+  function clone(o) {
+    return JSON.parse(JSON.stringify(obj));
+  }
+
   var bhelper = {
     blockStatement: function(body) {
         return builder.blockStatement(expandMultiStatements(body));
@@ -118,7 +122,8 @@
                 nue = bhelper.luaOperator("indexAssign", nue, prop, exp, {type:"Literal", value: helper});
             }
 
-            nue.origional = out;
+            nue = {type: "ConditionalExpression",test: nue, consequent: exp, alternate: out};
+
             out = nue;
         }
             
