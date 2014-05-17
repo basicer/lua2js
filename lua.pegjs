@@ -155,16 +155,32 @@
             return bhelper.blockStatement([ builder.variableDeclaration("let", decls) ].concat(body));
         }
     },
-    encloseDeclsUnpack: function(body, names, explist) {
-        return {
-            expression: builder.callExpression(
-                builder.memberExpression(
-                    builder.functionExpression(null, names, builder.blockStatement(body)),
-                    i("apply")
+    encloseDeclsUnpack: function(body, names, explist, force) {
+
+        if ( force || opt("encloseWithFunctions", true) ) {
+            return {
+                expression: builder.callExpression(
+                    builder.memberExpression(
+                        builder.functionExpression(null, names, builder.blockStatement(body)),
+                        i("apply")
+                    ),
+                    [{type: "Literal", value: null}, bhelper.luaOperatorA("expandReturnValues", explist)]
                 ),
-                [{type: "Literal", value: null}, bhelper.luaOperatorA("expandReturnValues", explist)]
-            ),
-            type: "ExpressionStatement"
+                type: "ExpressionStatement"
+            }
+        } else {
+            var decls = [];
+            for ( var idx in names ) {
+                decls.push({
+                    type: "VariableDeclarator",
+                    id: names[idx],
+                    init: idx.id
+                });
+            }
+            return bhelper.blockStatement([ 
+                builder.variableDeclaration("let", decls),
+                bhelper.bulkAssign(names, explist)
+                ].concat(body));
         }
     },
     bulkAssign: function(names, explist) {
@@ -175,7 +191,7 @@
             body[i] = bhelper.assign(names[i], temps[i]);
         }
 
-        var out = bhelper.encloseDeclsUnpack(body, temps, explist);
+        var out = bhelper.encloseDeclsUnpack(body, temps, explist, true);
         return out;
     },
     luaOperator: function(op /*, args */) {
