@@ -91,8 +91,13 @@
   var i = function(n) { return { type: "Identifier", name: n}; }
   var tmpVarCtr = 0;
 
-  function clone(o) {
+  function clone(obj) {
     return JSON.parse(JSON.stringify(obj));
+  }
+
+  function finalize(ast) {
+    if ( opt("noSharedObjects", true) ) return clone(ast);
+    return ast;
   }
 
   var bhelper = {
@@ -319,7 +324,7 @@
 
 }
 
-start = ("#" [^\n]* "\n")? ws? t:BlockStatement ws? { return t; }
+start = ("#" [^\n]* "\n")? ws? t:BlockStatement ws? { return finalize(t); }
 
 ws = ([ \r\t\n] / "--[" balstringinsde "]"  / ("--" ( [^\n]* "\n" / .* ) )) +
 
