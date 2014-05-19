@@ -23,7 +23,7 @@ var __lua = (function() {
 
 	function add(a,b) {
 		
-		var mtf = lookupMetaTable(a, "__add");
+		var mtf = lookupMetaTableBin(a, b, "__add");
 		if ( mtf !== null ) return mtf(a,b);
 
 		return numberForArith(a) + numberForArith(b); 
@@ -31,7 +31,7 @@ var __lua = (function() {
 
 	function sub(a,b) { 
 
-		var mtf = lookupMetaTable(a, "__sub");
+		var mtf = lookupMetaTableBin(a, b, "__sub");
 		if ( mtf !== null ) return mtf(a,b);
 
 		return numberForArith(a) - numberForArith(b);
@@ -39,7 +39,7 @@ var __lua = (function() {
 
 	function mul(a,b) { 
 
-		var mtf = lookupMetaTable(a, "__mul");
+		var mtf = lookupMetaTableBin(a, b, "__mul");
 		if ( mtf !== null ) return mtf(a,b);
 
 		return numberForArith(a) * numberForArith(b);
@@ -48,10 +48,26 @@ var __lua = (function() {
 
 	function pow(a,b) { return Math.pow(numberForArith(a),numberForArith(b)); }
 
-	function concat(a,b) { return "" + a + b; }
+	function concat(a,b) { 
+		var mtf = lookupMetaTableBin(a, b, "__concat");
+		if ( mtf !== null ) return mtf(a,b);
 
-	function lte(a,b) { return a <= b; }
-	function lt(a,b) { return a < b; }
+		return "" + a + b; 
+	}
+
+	function lte(a,b) { 
+		var mtf = lookupMetaTableBin(a, b, "__le");
+		if ( mtf !== null ) return mtf(a,b);
+
+		return a <= b; 
+	}
+
+	function lt(a,b) {
+		var mtf = lookupMetaTableBin(a, b, "__lt");
+		if ( mtf !== null ) return mtf(a,b);
+
+		return a < b; 
+	}
 
 	function gte(a,b) { return lte(b,a); }
 	function gt(a,b) { return lt(b,a); }
@@ -172,6 +188,12 @@ var __lua = (function() {
 		}
 
 		return null;
+	}
+
+	function lookupMetaTableBin(a, b, entry) {
+		var mt = lookupMetaTable(a, entry);
+		if ( mt == null ) return lookupMetaTable(b, entry);
+		return mt;
 	}
 
 	function index(table, prop, helper) {
@@ -419,6 +441,10 @@ env.tonumber = function(n) {
 	return parseInt(n);
 }
 
+env.tostring = function(n) {
+	return "" + n;
+}
+
 env.os = {
 	clock: null,
 	date: null,
@@ -541,6 +567,7 @@ env.math = Math;
 env.setmetatable = function setmetatable(target, meta) {
 
 	Object.defineProperty(target, "__metatable", {value: meta, enumerable: false, configurable: true });
+	return target;
 }
 
 env.getmetatable = function getmetatable(taget, meta) {
