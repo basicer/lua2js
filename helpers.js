@@ -146,6 +146,10 @@
     },
     encloseDecls: function(body /*, decls...*/) {
         var decls = Array.prototype.slice.call(arguments, 1);
+        return bhelper.encloseDeclsEx.apply(this, [body, bhelper.opt("encloseWithFunctions", true) ].concat(decls));
+    },
+    encloseDeclsEx: function(body, enclose /*, decls...*/) {
+        var decls = Array.prototype.slice.call(arguments, 2);
         var vals = [];
         var names = [];
         for ( var k in decls ) {
@@ -154,7 +158,7 @@
             names.push(v.id);
         }
 
-        if ( opt("encloseWithFunctions", true) ) {
+        if ( enclose ) {
             return {
                 expression: builder.callExpression(
                     builder.functionExpression(null, names, bhelper.blockStatement(body)),
@@ -267,15 +271,17 @@
                     return bhelper.luaOperator.apply(bhelper, ["call", flagso , rcallee, callee.object, helper].concat(args));
 
                 } else {
-                    var tmp = bhelper.tempVar(callee.object);
+                    var tmp = bhelper.tempVar(bhelper.translateExpressionIfNeeded(callee.object));
                     
                     var rexpr = builder.memberExpression(tmp.id, callee.property, callee.computed);
                     var rcallee = bhelper.translateExpressionIfNeeded(rexpr);
-                    return bhelper.encloseDecls([
+                    var expr = bhelper.luaOperator.apply(bhelper, ["call", flagso, rcallee, tmp.id, helper].concat(args));
+                    return result = bhelper.encloseDeclsEx([
                         builder.returnStatement(
-                            bhelper.luaOperator.apply(bhelper, ["call", flagso, rcallee, tmp.id, helper].concat(args))
+                            expr
                         )
-                    ], tmp).expression;
+                    ], true, tmp).expression;
+
                 }
             } else {
                 var rcallee = bhelper.translateExpressionIfNeeded(callee)
