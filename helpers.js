@@ -146,7 +146,7 @@
     },
     encloseDecls: function(body /*, decls...*/) {
         var decls = Array.prototype.slice.call(arguments, 1);
-        return bhelper.encloseDeclsEx.apply(this, [body, bhelper.opt("encloseWithFunctions", true) ].concat(decls));
+        return bhelper.encloseDeclsEx.apply(this, [body, opt("encloseWithFunctions", true) ].concat(decls));
     },
     encloseDeclsEx: function(body, enclose /*, decls...*/) {
         var decls = Array.prototype.slice.call(arguments, 2);
