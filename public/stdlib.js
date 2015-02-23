@@ -29,6 +29,7 @@ var __lua = (function() {
 		var mtf = lookupMetaTable(a, "__tostring");
 		if ( mtf !== null ) return mtf(a);
 
+		if ( a === undefined || a === null ) return "nil";
 		return "" + a;
 	}
 
@@ -147,6 +148,13 @@ var __lua = (function() {
 	function and(a,b) { return a && b; }
 	function or(a,b) { return a || b; }
 
+	function andss(a,b) { 
+		return a && b(); 
+	}
+	
+	function orss(a,b) { 
+		return a || b(); 
+	}
 	
 
 	function call(flags, what, that, helper /*, args... */ ) {
@@ -402,6 +410,8 @@ var __lua = (function() {
 		count: count,
 		and: and,
 		or: or,
+		andss: andss,
+		orss: orss,
 		expand: expand,
 		rest: rest,
 		pcall: pcall,
