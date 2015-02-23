@@ -71,11 +71,18 @@ tests = [
     ],
     [
         [
-        'eval("var ct = function(w) { return typeof w; }")',
-        'function add(a,b) return 7 + a + b end',
+        'eval("var ct = function(w) { return \'!\' + w + \'!\' + (typeof w); }")',
+        'function add(a,b) return 7 + a + b, b - a end',
         'local sum = add(2,3)',
         'return ct(sum)',
-        ],"number"
+        ],"!12!number"
+    ],
+    [
+        [
+            'function add(a,b) return a*a+b*b,0 end',
+            'local o = add(3,4)',
+            'return ("a" .. o .. add(5,12))'
+        ], 'a25169'
     ],
     [
         [
@@ -95,10 +102,13 @@ function makenv() {
         var env = {};
         for ( var i in goodies ) env[i] = goodies[i];
         env.print = function() {
-            var s = Array.prototype.slice.call(arguments).join("\t"); 
+            var s = Array.prototype.slice.call(arguments)
+                .map(function(x) { return env.tostring(x); })
+                .join("\t"); 
             stdout = stdout + s + "\n";
             console.log(s); 
         };
+
         env.getStdOut = function() { return stdout; }
         env.io = {
             write: function(w) { return env.print(w); }
@@ -116,7 +126,7 @@ function makenv() {
                 });
             }
         }
-
+        env.__lua.mark(env);
         return env;
     })("");
 

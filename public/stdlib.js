@@ -16,16 +16,25 @@ var __lua = (function() {
 		if ( type(n) == "number" ) return n;
 		else if ( typeof n == "string" ) {
 			n = parseInt(n);
-		} else {
-			n = NaN;
+			if ( !isNaN(n) ) return n;
+
 		}
 
-		if ( isNaN(n) ) throw "attempt to perform arithmetic on a " +  type(n) + " value";
-		return n;
+		throw "attempt to perform arithmetic on a " +  type(n) + " value: " + n;
+	}
+
+	function makeString(a) { 
+		a = oneValue(a);
+
+		var mtf = lookupMetaTable(a, "__tostring");
+		if ( mtf !== null ) return mtf(a);
+
+		return "" + a;
 	}
 
 	function add(a,b) {
-		
+		a = oneValue(a); b = oneValue(b);
+
 		var mtf = lookupMetaTableBin(a, b, "__add");
 		if ( mtf !== null ) return mtf(a,b);
 
@@ -33,6 +42,7 @@ var __lua = (function() {
 	}
 
 	function sub(a,b) { 
+		a = oneValue(a); b = oneValue(b);
 
 		var mtf = lookupMetaTableBin(a, b, "__sub");
 		if ( mtf !== null ) return mtf(a,b);
@@ -41,6 +51,7 @@ var __lua = (function() {
 	}
 
 	function mul(a,b) { 
+		a = oneValue(a); b = oneValue(b);
 
 		var mtf = lookupMetaTableBin(a, b, "__mul");
 		if ( mtf !== null ) return mtf(a,b);
@@ -49,16 +60,39 @@ var __lua = (function() {
 
 	}
 
-	function pow(a,b) { return Math.pow(numberForArith(a),numberForArith(b)); }
+	function div(a,b) { 
+		a = oneValue(a); b = oneValue(b);
 
-	function concat(a,b) { 
-		var mtf = lookupMetaTableBin(a, b, "__concat");
+		var mtf = lookupMetaTableBin(a, b, "__dic");
 		if ( mtf !== null ) return mtf(a,b);
 
-		return "" + a + b; 
+		return numberForArith(a) / numberForArith(b);
+
 	}
 
-	function lte(a,b) { 
+
+	function pow(a,b) { 
+		a = oneValue(a); b = oneValue(b);
+
+		var mtf = lookupMetaTableBin(a, b, "__pow");
+		if ( mtf !== null ) return mtf(a,b);
+
+		return Math.pow(numberForArith(a),numberForArith(b)); 
+	}
+
+	function concat(a,b) { 
+		a = oneValue(a); b = oneValue(b);
+
+		var mtf = lookupMetaTableBin(a, b, "__concat");
+		if ( mtf !== null ) return mtf(a,b);
+		if ( a === null || a === undefined || b === null || b === undefined ) throw "attempt to concatenate a nil value";
+
+		return  makeString(a) + makeString(b); 
+	}
+
+	function lte(a,b) {
+		a = oneValue(a); b = oneValue(b);
+
 		var mtf = lookupMetaTableBin(a, b, "__le");
 		if ( mtf !== null ) return mtf(a,b);
 
@@ -66,6 +100,8 @@ var __lua = (function() {
 	}
 
 	function lt(a,b) {
+		a = oneValue(a); b = oneValue(b);
+
 		var mtf = lookupMetaTableBin(a, b, "__lt");
 		if ( mtf !== null ) return mtf(a,b);
 
@@ -84,6 +120,12 @@ var __lua = (function() {
 
 	
 	function eq(a,b) { 
+		a = oneValue(a); b = oneValue(b);
+
+		var mtf = lookupMetaTableBin(a, b, "__eq");
+		if ( mtf !== null ) return mtf(a,b);
+
+
 		if ( a === null || a === undefined ) {
 			return ( b === null || b === undefined );
 		}
@@ -105,7 +147,7 @@ var __lua = (function() {
 	function and(a,b) { return a && b; }
 	function or(a,b) { return a || b; }
 
-	function div(a,b) { return a / b; }
+	
 
 	function call(flags, what, that, helper /*, args... */ ) {
 		var injectSelf = !!(flags & 1); 
@@ -367,7 +409,8 @@ var __lua = (function() {
 		pow: pow,
 		isTable: isTable,
 		mark: mark,
-		forcomp: forcomp
+		forcomp: forcomp,
+		makeString: makeString
 	}
 
 
@@ -449,7 +492,7 @@ env.tonumber = function(n) {
 }
 
 env.tostring = function(n) {
-	return "" + n;
+	return __lua.makeString(n);
 }
 
 env.os = {
