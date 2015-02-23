@@ -1,6 +1,9 @@
 var env = {};
 var __lua = (function() {
 
+	// Yoinked from underscore.
+	var isJSArray = Array.isArray || function(obj) { return toString.call(obj) === '[object Array]'; };
+
 	function type(what) {
 		if ( what === null || what === undefined ) return "nil";
 		if ( isNaN(what) ) return "number";
@@ -203,9 +206,7 @@ var __lua = (function() {
 			} else {
 				throw "attempt to index '" + helper + "' (a " + type(table) + " value)";
 			}
-		}
-
-		if ( table instanceof LuaTable ) {
+		} else if ( table instanceof LuaTable ) {
 			var val;
 			if ( typeof prop == "number") val = table.numeric[prop-1];
 			else val = table.hash[prop];
@@ -217,6 +218,8 @@ var __lua = (function() {
 
 			if ( typeof idx == "function" ) return oneValue(idx(table, prop));
 			return index(idx, prop);
+		} else if ( isJSArray(table) ) {
+			return table[prop - 1];
 		} else if ( typeof table == "string" ) {
 			return this.string[prop];
 		} else {
@@ -271,8 +274,12 @@ var __lua = (function() {
 
 		} else if ( typeof table == "string" ) { 
 			throw "attempt to index string value"
+		} else if ( isJSArray(table) ) {
+			table[prop-1] = value;
+			return true;
 		} else {
-			return false;
+			table[prop] = value;
+			return true;
 		}
 	}
 

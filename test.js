@@ -55,6 +55,35 @@ tests = [
         'for i=1,20,3 do total = total + i end',
         'return total'
         ], 70
+    ],
+    [
+        [
+        'eval("var a = [1,2,3]")',
+        'return a[1]'
+        ],1
+    ],
+    [
+        [
+        'eval("var a = [1,2,3]")',
+        'a[2] = 7',
+        'return eval("a.toString()")'
+        ],"1,7,3"
+    ],
+    [
+        [
+        'eval("var ct = function(w) { return typeof w; }")',
+        'function add(a,b) return 7 + a + b end',
+        'local sum = add(2,3)',
+        'return ct(sum)',
+        ],"number"
+    ],
+    [
+        [
+        'eval("var json = function(w) { return JSON.stringify(w); }")',
+        'function g() return {x=1, y=20} end',
+        'o = g()',
+        'return json(o) .. " " .. eval("(function(x) { return x.__luaType; })(o)")',
+        ],'{"x":1,"y":20} table'
     ]
 
 
