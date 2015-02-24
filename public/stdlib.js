@@ -148,15 +148,6 @@ var __lua = (function() {
 	function and(a,b) { return a && b; }
 	function or(a,b) { return a || b; }
 
-	function andss(a,b) { 
-		return a && b(); 
-	}
-	
-	function orss(a,b) { 
-		return a || b(); 
-	}
-	
-
 	function call(flags, what, that, helper /*, args... */ ) {
 		var injectSelf = !!(flags & 1); 
 		var detectLua = !!(flags & 2); 
@@ -410,8 +401,6 @@ var __lua = (function() {
 		count: count,
 		and: and,
 		or: or,
-		andss: andss,
-		orss: orss,
 		expand: expand,
 		rest: rest,
 		pcall: pcall,
@@ -524,9 +513,15 @@ env.io = {
 
 env.error = function error(s) { throw s; }
 
-env.assert = function assert(what, msg) {
-	if ( !!!what ) console.log("Assertion Failed!", msg);
-	else ( console.log("Assert Passed!" , msg));
+env.assert = function assert(what, msg, code) {
+	if ( code === undefined ) {
+		code = msg
+		msg = undefined;
+	}
+
+	if ( !!what ) return what;
+
+	throw("Assert Failed!! " + code);
 }
 
 env.type = function type(what) {

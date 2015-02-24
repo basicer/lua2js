@@ -212,7 +212,7 @@
             return bhelper.encloseDeclsUnpack(body, temps, explist, true);
         } else {
             var value = explist[0];
-            if ( value.type == "CallExpression" ) value = builder.callExpression(builder.memberExpression(id("__lua"),id("oneValue")),[value]);
+            if ( value.type == "CallExpression" ) value = bhelper.luaOperator("oneValue", value);
             return bhelper.assign(names[0], value);
         }
         
@@ -234,14 +234,12 @@
         return o;
     },
     binaryExpression: function(op, a, b) {
-        if ( opt("luaOperators", false) ) {
+        if ( opt("luaOperators", false) && op != "and" && op != "or" ) {
             var map = {"+": "add", "-": "sub", "*": "mul", "/": "div", "^": "pow", "%":"mod",
                 "..": "concat", "==": "eq", "<": "lt", "<=": "lte", ">": "gt", ">=": "gte", "~=": "ne",
-                "and": "andss", "or": "orss"
+                "and": "and", "or": "or"
             };
-            if ( op == "and" || op == "or" ) {
-                b = bhelper.valueProvdier(b);
-            }
+            
             return bhelper.luaOperator(map[op], a, b);
         } else {
 
@@ -249,6 +247,9 @@
             else if ( op == ".." ) op = "+";
             else if ( op == "or" ) op = "||";
             else if ( op == "and" ) op = "&&";
+
+            a = bhelper.luaOperator("oneValue", a);
+            b = bhelper.luaOperator("oneValue", b);
 
             return builder.binaryExpression(op, a, b);
         }
