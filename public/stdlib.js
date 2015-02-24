@@ -166,7 +166,7 @@ var __lua = (function() {
 			else throw "attempt to call '" + helper + "' (a " + type(what) + " value)"; 
 		}
 
-		var args = expand(Array.prototype.slice.call(arguments, 4));
+		var args = expand(Array.prototype.slice.call(arguments, 4), true);
 
 		var doInject = true;
 
@@ -366,7 +366,7 @@ var __lua = (function() {
 
 	function pcall(what /*, args... */ ) {
 		try {
-			var result = expand([what.apply(this, Array.prototype.slice.call(arguments, 1))]);
+			var result = expand([what.apply(this, Array.prototype.slice.call(arguments, 1))], true);
 			result.unshift(true);
 			return makeMultiReturn.apply(__lua, result);
 		} catch ( e ) {
@@ -420,7 +420,8 @@ var __lua = (function() {
 		isTable: isTable,
 		mark: mark,
 		forcomp: forcomp,
-		makeString: makeString
+		makeString: makeString,
+		oneValue: oneValue
 	}
 
 
