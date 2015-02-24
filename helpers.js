@@ -95,6 +95,7 @@
   };
 
   var i = function(n) { return { type: "Identifier", name: n}; }
+  var id = i;
   var tmpVarCtr = 0;
 
   function clone(obj) {
@@ -207,8 +208,14 @@
             body[i] = bhelper.assign(names[i], temps[i]);
         }
 
-        var out = bhelper.encloseDeclsUnpack(body, temps, explist, true);
-        return out;
+        if ( names.length > 1 ) {
+            return bhelper.encloseDeclsUnpack(body, temps, explist, true);
+        } else {
+            var value = explist[0];
+            if ( value.type == "CallExpression" ) value = builder.callExpression(builder.memberExpression(id("__lua"),id("oneValue")),[value]);
+            return bhelper.assign(names[0], value);
+        }
+        
     },
     luaOperator: function(op /*, args */) {
         var o = builder.callExpression(
