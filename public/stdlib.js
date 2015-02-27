@@ -30,6 +30,9 @@ var __lua = (function() {
 		if ( mtf !== null ) return mtf(a);
 
 		if ( a === undefined || a === null ) return "nil";
+		if ( a instanceof LuaTable ) {
+			return "table: 0x" + a.id;
+		}
 		return "" + a;
 	}
 
@@ -193,12 +196,17 @@ var __lua = (function() {
 		return out;
 	}
 
+	var id = 0;
 	function LuaTable() {
+		this.id = ++id;
 		this.numeric = [];
 		this.hash = {};
 	};
 
 	Object.defineProperty(LuaTable.prototype, "__luaType",  {value: "table",  enumerable: false});
+	Object.defineProperty(LuaTable.prototype, "toString",  {value: function() {
+		return makeString(this);
+	},  enumerable: false});
 
 	function makeTable(t, allowExpand /*, numeric ... */) {
 		var out = new LuaTable();

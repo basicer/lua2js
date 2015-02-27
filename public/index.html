@@ -109,6 +109,7 @@
             <div class="checkbox"><label><input type="checkbox" ng-model="opts.loose"> Loose Mode</label></div>
           </div>
           <div class="col-sm-6">
+            <div class="checkbox"><label><input type="checkbox" ng-model="opts.useStrict"> Use Strict</label></div>
           </div>
         </div>
       </div>
@@ -131,6 +132,7 @@ var myAppModule = angular.module('MyApp', ['ui.ace']);
 function update($scope) {
   try {
     $scope.error = "";
+    window.localStorage["code"] = $scope.code;
     var c = parser.parse($scope.code, $scope.opts);
     $scope.code2 = "(function()\n" + escodegen.generate(c) + ")();";
   } catch ( e ) {
@@ -142,9 +144,10 @@ function update($scope) {
 
 function main($scope) { 
 
-  $scope.code = "";
+  $scope.code = window.localStorage["code"] || "";
   $scope.code2 = "{\n}";
-  $scope.opts = {forceVar: true, decorateLuaObjects: true, luaCalls: true, luaOperators: true, encloseWithFunctions: false };
+  $scope.opts = {forceVar: true, decorateLuaObjects: true, luaCalls: true, luaOperators: true,
+    encloseWithFunctions: false, useStrict: false };
 
   $scope.fix = function(c) { return c.reverse(); }
   $scope.aceLoaded = function(e) {

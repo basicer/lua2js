@@ -102,8 +102,18 @@
     return JSON.parse(JSON.stringify(obj));
   }
 
+
+
   function finalize(ast) {
     if ( opt("loose", false) ) ast.errors = errors;
+    
+    if ( opt("useStrict", false) ) {
+        ast.body.unshift({
+            type: "ExpressionStatement",
+            expression: { type: "Literal", value: "use strict" }
+        });
+    }
+
     if ( opt("noSharedObjects", true) ) return clone(ast);
     return ast;
   }
