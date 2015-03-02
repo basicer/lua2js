@@ -31,7 +31,6 @@ When the `luaCalls` option is on, the arguments to javascript functions will be 
 
 ### Lua Syntax Not Supported (Yet)
 
-- `{[expression] = value}` table fields.
 - Long form strings and comments will choke on internal `]]`'s even when using the `[==[` syntax.
 - The `goto` statement and labels from lua 5.2 are unimplemented.
 - The global environment doesn't exist in `_ENV` or `_G`.
@@ -78,4 +77,3 @@ You can run a suite of tests using the `npm test` command.  The tests require ha
 ## License
 
 Code and documentation copyright 2014 Rob Blanckaert. Code released under [the MIT license](LICENSE).
-
