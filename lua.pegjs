@@ -3,13 +3,14 @@
 start = &{ init(); return true; } ("#" [^\n]* "\n")? ws? t:BlockStatement ws? { return finalize(t); }
 
 ws = ([ \r\t\n] / "--[" balstringinsde "]"  / ("--" ( [^\n]* "\n" / .* ) )) +
+scws = (ws? ";" ws?)+ / ws 
 
 BlockStatement =
     r:ReturnStatement
     {
         return builder.blockStatement([r]) 
     } /
-    list:StatatementList ret:(( ws? ";" ws? / ws )+ ReturnStatement)?
+    list:StatatementList ret:(scws+ ReturnStatement)? 
     {
         list = expandMultiStatements(list);
         return builder.blockStatement(ret === null ? list : list.concat([ret[1]])); 
@@ -17,21 +18,21 @@ BlockStatement =
 
 
 StatatementList = 
-    a:Statement? b:( ( ws? ";" ws? / ws )+ Statement )* (ws? ";" ws?)*
+    a:Statement? b:(scws+ Statement )* (ws? ";" ws?)*
     {  
         if ( a === null ) return [];
         if ( b === null ) return a;
         return listHelper(a,b,1);
     } 
 
-ReservedWord = "if" / "then" / "else" / "elseif" / "do" / "end" / "return" / "local" / "nil" / "true" / "false"
+ReservedWord = "if" / "then" / "elseif" / "else" / "do" / "end" / "return" / "local" / "nil" / "true" / "false"
     "function" / "not" / "break" / "for" / "until" / "function" / binop / unop
 
 Name = !(ReservedWord (ws / !.)) a:$([a-zA-Z_][a-zA-Z0-9_]*) { return a; }
 Number = $([0-9]+("." [0-9]+)?)
 
 stringchar =
-    "\\" c:[abfrntv'"] { return {
+    "\\" c:[abfrntv'"\\] { return {
         "n": "\n",
         "b": "\b",
         "f": "\f",
@@ -39,10 +40,12 @@ stringchar =
         "t": "\t",
         "v": "\v",
         '"': '"',
-        "'": "'" 
+        "'": "'",
+        "\\": "\\"
     }[c] } / 
-    "\\\n" { return "" } /
+    "\\\n" { return "\n" } /
     "\\\z" ws { return "" } /
+    "\\x" a:$[0-9a-f] b:$[0-9a-f] { return String.fromCharCode(parseInt('0x' + a + b)); } /
     "\\" a:$[0-9] b:$[0-9]? c:$[0-9]? { return String.fromCharCode(parseInt('' + a + b + c)); } /
     "\\" { error('Invalid Escape Sequence') } / 
     $[^'"'] 
@@ -145,6 +148,7 @@ ForEach =
     {
         var statements = [];
         var nil = {type: "Literal", value: null };
+        var uf = {type: "Identifier", name: 'undefined' };
 
 
         var iterator = bhelper.tempName();
@@ -166,13 +170,17 @@ ForEach =
         //    assign = bhelper.assign(v1, call);
         //}
 
+        var nullish = function(v) {
+            return builder.binaryExpression("||", builder.binaryExpression("===", v1, nil), builder.binaryExpression("===", v1, uf))
+        }
+
         statements.push(builder.variableDeclaration("let", varlist));
         statements.push({
             type: "WhileStatement",
             test: {type: "Literal", value: true},
             body: bhelper.blockStatement([
             assign,
-            { type: "IfStatement", test: builder.binaryExpression("===", v1, nil), consequent: {type: "BreakStatement" } },
+            { type: "IfStatement", test: nullish(v1), consequent: {type: "BreakStatement" } },
             bhelper.assign(curent, v1),
             c.body
 
@@ -339,8 +347,9 @@ SimpleExpression = (
      Literal / ResetExpression / FunctionExpression / CallExpression / That / Identifier /
     ObjectExpression / UnaryExpression / ParenExpr )
 
-Expression = 
-    AssignmentExpression /
+Expression = AssignmentExpression / BinSimpleExpression
+
+BinSimpleExpression = 
     a:(MemberExpression/SimpleExpression) b:( ws? op:binop ws? (MemberExpression/SimpleExpression) )*
     {
         a = bhelper.translateExpressionIfNeeded(a);
@@ -358,7 +367,7 @@ Expression =
 
 
 unop = $("-" / "not" / "#")
-binop = $("+" / "-" / "==" / ">=" / "<=" / "~=" / ">" / "<" / ".." / "and" / "or" / "*" / "/" / "%" / "^" )
+binop = $("+" / "-" / "==" / ">=" / "<=" / "~=" / ">" / "<" / ".." / "and" / "or" / "*" / "//" / "/" / "%" / "^" )
 
 
 prefixexp =
@@ -384,7 +393,16 @@ callsuffix =
     b:ObjectExpression { return [b]; } /
     c:String { return [{type: "Literal", value: c, loc: loc(), range: range()}]; }
 
-ParenExpr = "(" ws? a:Expression ws? ")" { return a; }
+ParenExpr = "(" ws? a:Expression ws? ")" {
+
+    // Wraping a call in ()'s reduces it to a singel value
+    if ( a.type == "CallExpression" ) {
+        return bhelper.luaOperator("oneValue", a);
+    } else if ( a.type == "Identifier" && a.name == "__lua$rest" ) {
+        return bhelper.luaOperator("oneValue", a);
+    }
+    return a;
+}
 
 ResetExpression = 
     "..." {
@@ -477,8 +495,10 @@ ObjectExpression =
 
         var props = listHelper(f,s,3);
         var numeric = 0;
+        var longProps = [];
         for ( var idx in props ) {
             var p = props[idx];
+
             if ( p.key === undefined ) p.key = {type: "Literal", value: ++numeric, arrayLike: true};
             p.kind = "init";
             result.properties.push(p);
@@ -496,12 +516,17 @@ ObjectExpression =
                     args.push(p.value);
                     last = true;
                 } else {
+                    longProps.push({
+                        type: "ArrayExpression",
+                        elements: [p.key, p.value]
+                    });
                     pp.push(p);
                     last = false;
                 }
             }
             result.properties = pp;
 
+            result = {type: "ArrayExpression", elements: longProps };
             if (pp.length < 1 ) result = {type:"Literal", value: null};
 
             return bhelper.luaOperator.apply(bhelper, ["makeTable", result, {type: "Literal", value:last}].concat(args)); 
@@ -511,15 +536,16 @@ ObjectExpression =
 
 field =
                                           /* Otherwise we think it might be a multi assignment */
-    n:(Literal/Identifier) ws? "=" ws? v:(FunctionExpression/MemberExpression/CallExpression/SimpleExpression/Expression) 
+    n:(Literal/Identifier) ws? "=" ws? v:(BinSimpleExpression) 
     {
+        if ( n.type == "Identifier" ) n = {type: "Literal", value: n.name};
         return { key: n, value: v };
     }/
-    v:Expression ws?
+    v:BinSimpleExpression ws?
     {
         return { value: v };
     }/
-    ws? "[" ws? k:Expression ws? "]" ws? "=" ws? v:Expression
+    ws? "[" ws? k:Expression ws? "]" ws? "=" ws? v:BinSimpleExpression
     {
         return { key: k, value: v }; 
     }
@@ -624,7 +650,10 @@ UnaryExpression =
     o:unop ws? e:(MemberExpression/SimpleExpression/Expression)
     { 
         var ops = {"not": "!", "-": "-", "#": "#" }
-        if ( o == "#" ) return bhelper.luaOperator("count", e);
+        if ( o == "#" ) {
+            e = bhelper.translateExpressionIfNeeded(e);
+            return bhelper.luaOperator("count", e);
+        }
         return { 
             type: "UnaryExpression",
             operator: ops[o],
@@ -654,6 +683,11 @@ Literal =
     b: Number [eE] c:$(("-" / "+")? [0-9]+)
     {
         return { type: "Literal", value: parseFloat(b) * Math.pow(10, parseInt(c)), loc: loc(), range: range()  }
+
+    } /
+    b: "0" [Xx] b:$([0-9a-fA-F]+)
+    {
+        return { type: "Literal", value: parseInt(b), loc: loc(), range: range()  }
 
     } /
     b: Number

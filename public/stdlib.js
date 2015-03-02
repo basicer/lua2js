@@ -32,6 +32,11 @@ var __lua = (function() {
 		if ( a === undefined || a === null ) return "nil";
 		if ( a instanceof LuaTable ) {
 			return "table: 0x" + a.id;
+		} else if ( typeof a == "number" ) {
+			if ( ~~a == a ) return a.toString();
+			var rep = a.toPrecision();
+			if ( rep.length > 14 ) return a.toPrecision(14);
+			return rep;
 		}
 		return "" + a;
 	}
@@ -61,19 +66,34 @@ var __lua = (function() {
 		if ( mtf !== null ) return mtf(a,b);
 
 		return numberForArith(a) * numberForArith(b);
-
 	}
 
 	function div(a,b) { 
 		a = oneValue(a); b = oneValue(b);
 
-		var mtf = lookupMetaTableBin(a, b, "__dic");
+		var mtf = lookupMetaTableBin(a, b, "__div");
 		if ( mtf !== null ) return mtf(a,b);
 
 		return numberForArith(a) / numberForArith(b);
-
 	}
 
+	function intdiv(a,b) { 
+		a = oneValue(a); b = oneValue(b);
+
+		var mtf = lookupMetaTableBin(a, b, "__idiv");
+		if ( mtf !== null ) return mtf(a,b);
+
+		return ~~(numberForArith(a) / numberForArith(b));
+	}
+
+	function mod(a,b) { 
+		a = oneValue(a); b = oneValue(b);
+
+		var mtf = lookupMetaTableBin(a, b, "__mod");
+		if ( mtf !== null ) return mtf(a,b);
+
+		return numberForArith(a) % numberForArith(b);
+	}
 
 	function pow(a,b) { 
 		a = oneValue(a); b = oneValue(b);
@@ -210,11 +230,26 @@ var __lua = (function() {
 
 	function makeTable(t, allowExpand /*, numeric ... */) {
 		var out = new LuaTable();
-		for ( var k in t ) {
-			out.hash[k] = t[k];
-		}
 
 		out.numeric = expand(Array.prototype.slice.call(arguments, 2), allowExpand);
+		if ( !t ) return out;
+
+		if ( isJSArray(t) ) {
+			for ( var i = 0; i < t.length; ++i ) {
+				var pair = t[i];
+				var key = pair[0];
+				var val = pair[1];
+				if ( typeof key == "number" ) {
+					out.numeric[key - 1] = val;
+				} else {
+					out.hash[key] = val;
+				}
+			}
+		} else {
+			for ( var k in t ) {
+				out.hash[k] = t[k];
+			}
+		}
 
 		return out;
 	}
@@ -270,7 +305,9 @@ var __lua = (function() {
 		} else if ( isJSArray(table) ) {
 			return table[prop - 1];
 		} else if ( typeof table == "string" ) {
-			return this.string[prop];
+			var idx = tonumber(prop);
+			if ( idx < 0 ) idx += (table.length + 1)
+			return table[idx-1];
 		} else {
 			return table[prop];
 		}
@@ -327,8 +364,7 @@ var __lua = (function() {
 			table[prop-1] = value;
 			return true;
 		} else {
-			table[prop] = value;
-			return true;
+			return false;
 		}
 	}
 
@@ -338,7 +374,7 @@ var __lua = (function() {
 	}
 
 	function makeMultiReturn() {
-		return new LuaReturnValues(expand(arguments));
+		return new LuaReturnValues(expand(arguments, true));
 	}
 
 	function expand(what, allowExpand) {
@@ -392,6 +428,8 @@ var __lua = (function() {
 		sub: sub,
 		mul: mul,
 		div: div,
+		intdiv: intdiv,
+		mod: mod,
 		call: call,
 		lte: lte,
 		lt: lt,
@@ -418,7 +456,8 @@ var __lua = (function() {
 		mark: mark,
 		forcomp: forcomp,
 		makeString: makeString,
-		oneValue: oneValue
+		oneValue: oneValue,
+		lookupMetaTable: lookupMetaTable
 	}
 
 
@@ -428,7 +467,12 @@ var __lua = (function() {
 this.__lua = __lua;
 
 env.string = {
-	byte: function byte() { },
+	byte: function byte(s,i,j) {
+		var chars = env.string.sub(s,i,j);
+		var out = [];
+		for ( var i = 0; i < chars.length; ++i ) out[i] = chars.charCodeAt(i);
+		return __lua.makeMultiReturn.apply(__lua, out);
+	},
 	char: function char(/* arguments */) {
 		var out = "";
 		for ( var i = 0; i < arguments.length; ++i ) {
@@ -439,7 +483,6 @@ env.string = {
 	},
 	dump: null,
 	find: null,
-	format: null,
 	gmatch: null,
 	gsub: null,
 	len: function len(s) { return ("" + s).length; },
@@ -449,14 +492,40 @@ env.string = {
 		return ("" + s).split("").reverse().join("");
 	},
 	sub: function(s, i, j) {
-		if ( j === undefined || n === null ) j = s.length;
-		i = i % string.length;
-		j = j % string.length;
+		if ( i === undefined || i === null ) i = 1;
+		if ( j === undefined || j === null ) j = s.length;
+		if ( i < 0 ) i += (s.length+1);
+		if ( j < 0 ) j += (s.length+1);
 
-		return ("" + s).substring(i,j);
+		return __lua.makeString(s).substring(i-1,j);
 
 	},
-	upper: function lower(s) { return ("" + s).toUpperCase(); }
+	upper: function lower(s) { return ("" + s).toUpperCase(); },
+		char: function char() {
+		var out = "";
+		for ( var code in arguments ) out += String.fromCharCode(code);
+		return out;
+	},
+	format: function format(format, etc) {
+		var arg = arguments;
+		var i = 1;
+		return format.replace(/%([0-9.]+)?([%sfdgi])/g, function (m, w, t) {
+			var r = null;
+			if ( t == "%" ) return "%";
+			else if ( t == "s") r = arg[i++];
+			else if ( t == "d") r = parseInt(arg[i++]);
+			else if ( t == "i") r = parseInt(arg[i++]);
+			else if ( t == "f" ) r = arg[i++].toFixed(parseFloat(m[1]) || 6);
+			else r = arg[i++]; 
+			r = "" + r;
+			if ( parseInt(w) ) {
+				var extra = parseInt(w) - r.length;
+				if ( extra > 0 ) r = new Array(extra).join(" ") + r;
+			}
+			return r;
+		});
+	}
+
 }
 
 env.table = {
@@ -538,6 +607,10 @@ env.type = function type(what) {
 
 
 env.pairs = function pairs(table) {
+
+	var mtf = __lua.lookupMetaTable(table, "__pairs");
+	if ( mtf !== null ) return mtf(table);
+
 	var list = [];
 	if ( __lua.isTable(table) ) {
 		for ( var i = 0; i < table.numeric.length; ++i ) list.push([i + 1, i, table.numeric]);
@@ -557,6 +630,10 @@ env.pairs = function pairs(table) {
 }
 
 env.ipairs = function ipairs(table) {
+
+	var mtf = __lua.lookupMetaTable(table, "__ipairs");
+	if ( mtf !== null ) return mtf(table);
+
 	return __lua.makeMultiReturn(function ipairsitr(table, cur) {
 		cur = cur + 1;
 		if ( __lua.isTable(table) ) {
@@ -638,7 +715,28 @@ env.getmetatable = function getmetatable(taget, meta) {
 	return taget.__metatable;
 }
 
+var reduce = function reduce(arr, op) {
+	if ( arr.length < 1 ) return undefined;
+	var val = arr[0];
+	for ( var i = 1; i < arr.length; ++i ) {
+		val = op(val, arr[i]);
+	}
+	return val;
+}
 
+env['bit32'] = {
+	band: function band() { return reduce(arguments, function(a,b) { return a & b}); },
+	bor: function bor() { return reduce(arguments, function(a,b) { return a | b}); },
+	bxor: function bxor() { return reduce(arguments, function(a,b) { return a | b}); },
+
+	rshift: function rshift(b, disp) { return b >> disp; }
+}
+
+env.require = function require(what) {
+	if ( what == "bit" ) return env.bit32;
+	if ( what == "bit32" ) return env.bit32;
+	throw "Module " + waht + " not found";
+}
 
 __lua.mark(env);
 __lua.env = env;

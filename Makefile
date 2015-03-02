@@ -4,7 +4,7 @@ all: public/piler.js public/piler.js.min public/stdlib.js.min
 	cp public/stdlib{,.min}.js dist
 
 
-public/piler.js: lua.pegjs
+public/piler.js: lua.pegjs helpers.js
 	cat helpers.js lua.pegjs | pegjs -e this.parser > public/piler.js
 
 public/piler.js.min: public/piler.js

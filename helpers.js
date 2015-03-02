@@ -45,7 +45,7 @@
   var opPrecedence = {
     "^": 10,
     "not": 9,
-    "*": 8, "/": 8,
+    "*": 8, "/": 8, "%": 8, "//": 8,
     "+": 7, "-": 7,
     "..": 6,
     "<": 5, ">": 5, ">=": 5, "<=": 5, "==": 5, "~=": 5,
@@ -215,7 +215,29 @@
         var body = [];
         for ( var i = 0; i < names.length; ++i ) {
             temps[i] = bhelper.tempName();
-            body[i] = bhelper.assign(names[i], temps[i]);
+        }
+
+        // If we are refrencing a previously set value in a bulk assign as a property
+        // we want to use the old value to look up the index, so we will pull that from
+        // the temp var passed in
+        var extra = 0;
+        for ( var i = 0; i < names.length; ++i ) {
+            var exp = names[i];
+            if ( exp.type == "MemberExpression" && exp.property.type == "Identifier" ) {
+                for ( var j = 0; j < i; ++j) {
+                    if ( names[j].name == exp.property.name ) {
+                        var holding = bhelper.tempName();
+                        temps.unshift(holding);
+                        explist.unshift(exp.property);
+                        exp.property = holding;
+                        ++extra;
+                    }
+                }
+            }
+        }
+
+        for ( var i = 0; i < names.length; ++i ) {
+            body[i] = bhelper.assign(names[i], temps[i+extra]);
         }
 
         if ( names.length > 1 ) {
@@ -245,7 +267,7 @@
     },
     binaryExpression: function(op, a, b) {
         if ( opt("luaOperators", false) && op != "and" && op != "or" ) {
-            var map = {"+": "add", "-": "sub", "*": "mul", "/": "div", "^": "pow", "%":"mod",
+            var map = {"+": "add", "-": "sub", "*": "mul", "/": "div", "//": "intdiv", "^": "pow", "%":"mod",
                 "..": "concat", "==": "eq", "<": "lt", "<=": "lte", ">": "gt", ">=": "gte", "~=": "ne",
                 "and": "and", "or": "or"
             };
@@ -257,6 +279,7 @@
             else if ( op == ".." ) op = "+";
             else if ( op == "or" ) op = "||";
             else if ( op == "and" ) op = "&&";
+            else if ( op == "//" ) op = "/";
 
             a = bhelper.luaOperator("oneValue", a);
             b = bhelper.luaOperator("oneValue", b);
