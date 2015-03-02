@@ -46,8 +46,8 @@ When the `luaCalls` option is on, the arguments to javascript functions will be 
 - `requires` and `package` interface tables are missing.
 - The `debug` library is missing.
 - The `coroutine` library is missing (and no runtime support for coroutines exists)`
-- The `bit32` library from lua 5.2 is unimplemented.
-- `string.format` is unimplemented.
+- The `bit32` library from lua 5.2 is incomplete.
+- `string.format` is less powerful then the lua version.
 - Pattern matching (`string.find`, `string.match`, `string.gsub`) is unimplemented.
 - Code loading (`load`, `dostring`, `dofile`, etc...) is unimplemented.
 
