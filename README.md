@@ -60,9 +60,9 @@ When the `luaCalls` option is on, the arguments to javascript functions will be 
 
 - `decorateLuaObjects`: Mark lua functions so `__lua.call` can call them differently.  Also the `{}` syntax will create a LuaTable object instead of a normal javascript object.
 - `encloseWithFunctions`: Protect variable scoping by creating functions and calling them.
-- `forceVar`: Forbid generation of `let` statements to maintain ES5 compatability.
+- `forceVar`: Forbid generation of `let` statements to maintain ES5 compatibility.
 - `loose`: Try not to throw parse errors, and collect them in `ast.errors` instead.
-- `luaCalls`: Rewrite function calls to use `__lua.call` to fix-up varrious lua<->javascript calling convention differences.
+- `luaCalls`: Rewrite function calls to use `__lua.call` to fix-up various lua<->javascript calling convention differences.
 - `luaOperators`: Use functions in the standard library instead of conventional operators to improve Lua compatibility. (e.g. `a+b` becomes `__lua.add(a,b)`)
 - `noSharedObjects`: Make sure all AST nodes are unique objects.  Can prevent bugs when performing transformations on the returned AST.
 - `allowRegularFunctions`: Normally all functions are emitted in `something = function() { ... }` format.  Enable this to emit the more normal (but sometimes less compatible) `function something() { ... }`.
