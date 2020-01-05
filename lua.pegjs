@@ -1,36 +1,29 @@
 /* Helpers include here by build script */
 
 start = &{ init(); return true; } ("#" [^\n]* "\n")? ws? t:BlockStatement ws? { return finalize(t); }
-
 ws = ([ \r\t\n] / "--[" balstringinsde "]"  / ("--" ( [^\n]* "\n" / .* ) )) +
 scws = (ws? ";" ws?)+ / ws 
-
 BlockStatement =
     r:ReturnStatement
     {
         return builder.blockStatement([r]) 
     } /
-    list:StatatementList ret:(scws+ ReturnStatement)? 
+    list:StatementList ret:(scws+ ReturnStatement)? 
     {
         list = expandMultiStatements(list);
         return builder.blockStatement(ret === null ? list : list.concat([ret[1]])); 
     } 
-
-
-StatatementList = 
+StatementList = 
     a:Statement? b:(scws+ Statement )* (ws? ";" ws?)*
     {  
         if ( a === null ) return [];
         if ( b === null ) return a;
         return listHelper(a,b,1);
     } 
-
-ReservedWord = "if" / "then" / "elseif" / "else" / "do" / "end" / "return" / "local" / "nil" / "true" / "false"
-    "function" / "not" / "break" / "for" / "until" / "function" / binop / unop
-
-Name = !(ReservedWord (ws / !.)) a:$([a-zA-Z_][a-zA-Z0-9_]*) { return a; }
+ReservedWord = rw:("if" / "then" / "elseif" / "else" / "do" / "end" / "return" / "local" / "nil" / "true" / "false"
+    "function" / "not" / "break" / "for" / "until" / "function" / binop / unop) (ws / !.) { return rw }
+Name = !(ReservedWord) a:$([a-zA-Z_][a-zA-Z0-9_]*) { return a; }
 Number = $([0-9]+("." [0-9]+)?)
-
 stringchar =
     "\\" c:[abfrntv'"\\] { return {
         "n": "\n",
@@ -49,20 +42,15 @@ stringchar =
     "\\" a:$[0-9] b:$[0-9]? c:$[0-9]? { return String.fromCharCode(parseInt('' + a + b + c)); } /
     "\\" { error('Invalid Escape Sequence') } / 
     $[^'"'] 
-
-singlequote = ['] { return wrapNode({}); }
-doublequote = ["] { return wrapNode({}); }
-
+singlequote = [\'] { return wrapNode({}); }
+doublequote = [\"] { return wrapNode({}); }
 String =
-    s:doublequote r:(stringchar/"'") * e:(doublequote/) &{ return eUntermIfEmpty(e,"string","\"",s); } { return r.join(''); } /
-    s:singlequote r:(stringchar/'"') * e:(singlequote/) &{ return eUntermIfEmpty(e,"string","'",s); } { return r.join(''); } / 
+    s:doublequote r:(stringchar/"'") * e:(doublequote) &{ return eUntermIfEmpty(e,"string","\"",s); } { return r.join(''); } /
+    s:singlequote r:(stringchar/'"') * e:(singlequote) &{ return eUntermIfEmpty(e,"string","'",s); } { return r.join(''); } / 
     "[" s: balstringinsde "]" { return s; }
-
 balstringinsde =
     "=" a:balstringinsde "=" { return a; } /
     "[" [\n]? a:$(!("]" "="* "]") .)* "]" { return a;}
-
-
 Statement = 
     s: ( 
     Debugger / BreakStatement /
@@ -81,41 +69,31 @@ Statement =
     !(ws? ReservedWord) e:$Identifier &{ return eMsg("`=` expected")} { return builder.emptyStatement(); } /
     !(ws? ReservedWord) e:$[^\n\t\r ] [^\n]* ([\n]/!.) &{ return eMsg("Parser error near `" + e + "`"); } { return builder.emptyStatement(); }
     ) 
-
 Debugger = 
     "debugger"
     { return {type: "ExpressionStatement", expression: {type: "Identifier", name:"debugger; "} } }
-
 DoEndGrouped = 
-    start:do ws? b:BlockStatement ws? end:("end"/) & { return eUntermIfEmpty(end, "do", "end", start); }
+    start:do ws? b:BlockStatement ws? end:("end") & { return eUntermIfEmpty(end, "do", "end", start); }
     { return b }
-
 if = "if" { return wrapNode({}); }
 do = "do" { return wrapNode({}); }
 for = "for" { return wrapNode({}); }
 function = "function" { return wrapNode({}); }
-
 NumericFor =
-    start:for ws a:Identifier ws? "=" ws? b:Expression ws? "," ws? c:Expression d:( ws? "," ws? Expression )? ws? "do" ws? body:BlockStatement ws? end:("end"/) &{ return eUntermIfEmpty(end, "for", "end", start); } 
+    start:for ws a:Identifier ws? "=" ws? b:Expression ws? "," ws? c:Expression d:( ws? "," ws? Expression )? ws? "do" ws? body:BlockStatement ws? end:("end") &{ return eUntermIfEmpty(end, "for", "end", start); } 
     {
         var amount = d == null ? {type: "Literal", value: 1 } : d[3];
-        
-
         var start = bhelper.tempVar(b);
         var updateBy = bhelper.tempVar(amount);
         var testValue = bhelper.tempVar(c);
         var idx = bhelper.tempVar();
-
         var update = builder.assignmentExpression("=", idx.id, bhelper.binaryExpression("+", idx.id, updateBy.id));
-
         var texp;
         if ( false ) {
             texp = bhelper.binaryExpression("<=", idx.id, testValue.id)
         } else {
             texp = bhelper.luaOperator("forcomp", updateBy.id, idx.id, testValue.id);
         }
-
-
         body.body.unshift(builder.variableDeclaration("let",[
             {
                     type: "VariableDeclarator",
@@ -123,7 +101,6 @@ NumericFor =
                     init: idx.id
             }
         ]));
-
         var out = {
             type: "ForStatement",
             init: builder.variableDeclaration("let", [
@@ -136,32 +113,24 @@ NumericFor =
             body: body,
             update: update,
             test: texp,
-            loc: loc(),
-            range: range()
+            loc: location()
         };
-
         return bhelper.encloseDecls([out], start, updateBy, testValue);
     }
-
 ForEach =
-    start:for ws a:namelist ws "in" ws b:explist ws "do" ws? c:BlockStatement ws? end:("end"/) & { return eUntermIfEmpty(end, "for", "end", start); } 
+    start:for ws a:namelist ws "in" ws b:explist ws "do" ws? c:BlockStatement ws? end:("end") & { return eUntermIfEmpty(end, "for", "end", start); } 
     {
         var statements = [];
         var nil = {type: "Literal", value: null };
         var uf = {type: "Identifier", name: 'undefined' };
-
-
         var iterator = bhelper.tempName();
         var context = bhelper.tempName();
         var curent = bhelper.tempName();
-
         var v1 = a[0];
-
         var varlist = [];
         for ( var idx in a ) {
             varlist.push({type: "VariableDeclarator", id: a[idx] });
         }
-
         var call = builder.callExpression(iterator,[context, curent]);
         var assign;
         //if ( a.length > 1 ) {
@@ -169,11 +138,9 @@ ForEach =
         //} else {
         //    assign = bhelper.assign(v1, call);
         //}
-
         var nullish = function(v) {
             return builder.binaryExpression("||", builder.binaryExpression("===", v1, nil), builder.binaryExpression("===", v1, uf))
         }
-
         statements.push(builder.variableDeclaration("let", varlist));
         statements.push({
             type: "WhileStatement",
@@ -183,19 +150,14 @@ ForEach =
             { type: "IfStatement", test: nullish(v1), consequent: {type: "BreakStatement" } },
             bhelper.assign(curent, v1),
             c.body
-
             ])
         });
-
         return bhelper.encloseDeclsUnpack(statements, [iterator, context, curent], b);
     }
-
-
 LocalAssingment =
     "local" ws left:namelist ws? "=" ws? right:explist
     { 
         var result = builder.variableDeclaration("let", []);
-
         if ( !opt('decorateLuaObjects', false) || ( left.length < 2 && right.length < 2 )) { 
             for ( var i = 0; i < left.length; ++i ) {
                 result.declarations.push(            {
@@ -204,7 +166,6 @@ LocalAssingment =
                     init: right[i],
                 });
             }
-
             return result;
         } else {
             var assign = bhelper.bulkAssign(left, right)
@@ -214,10 +175,8 @@ LocalAssingment =
                     id: left[i]
                 });
             }
-         
             return [result, assign];   
         }
-    
     }/
     "local" ws left:namelist
     {
@@ -230,63 +189,47 @@ LocalAssingment =
         }
         return result;  
     }
-
 AssignmentExpression =
     left:varlist ws? "=" ws? right:explist
     { 
         // if ( left.length < 2 ) return bhelper.assign(left[0], right[0]).expression;
         return bhelper.bulkAssign(left, right).expression;
     }
-
 BreakStatement = 
     "break"
     { return {
         "type": "BreakStatement",
-        loc: loc(),
-        range: range()
+        loc: location()
     } }
-
 ExpressionStatement =
     e:(AssignmentExpression/CallExpression)
     { return {
         type: "ExpressionStatement",
         expression: e,
-        loc: loc(),
-        range: range()
+        loc: location()
     } }
-
-
 elseif = "elseif" ws test:Expression ws "then" ws then:BlockStatement { return wrapNode({test: test, then:then}); }
-
 IfStatement =
     start:if ws test:Expression ws 
     ("then" / &{ return eUnterminated("if","then"); } ) ws then:BlockStatement 
     elzeifs:( ws? elseif )* 
-
-    elze:( ws? "else" ws BlockStatement )? ws? end:("end"/) &{ return eUntermIfEmpty(end, "if", "end", start); }
-    
-
+    elze:( ws? "else" ws BlockStatement )? ws? end:("end") &{ return eUntermIfEmpty(end, "if", "end", start); }
     {
-        var result = { type: "IfStatement", test: test, consequent: then, loc: loc(), range: range()}
+        var result = { type: "IfStatement", test: test, consequent: then, loc: location() }
         var last = result;
-
         for ( var idx in elzeifs ) {
             var elif = elzeifs[idx][1];
             var nue = { type: "IfStatement", test: elif.test, consequent: elif.then, loc: elif.loc, range: elif.range }
             last.alternate = nue;
             last = nue;
         }
-
         if ( elze !== null ) last.alternate = elze[3];
         return result;
     }
-
 ReturnStatement = 
     "return" ws argument:explist
     { 
         var arg;
-
-
         if ( argument == null ) { }
         else if ( argument.length == 1 ) arg = argument[0];
         else if ( argument.length > 1 ) {
@@ -299,30 +242,23 @@ ReturnStatement =
         return {
             type: "ReturnStatement",
             argument: arg,
-            loc: loc(),
-            range: range()
+            loc: location()
         }
     } /
     "return"
     {
         return {
             type: "ReturnStatement",
-            loc: loc(),
-        }     
+            loc: location() }     
     }
-
 WhileStatement =
     "while" ws test:Expression ws "do" ws body:BlockStatement ws ( "end" / & { return eUnterminated("if"); } ) 
     { return {
         type: "WhileStatement",
         test: test,
         body: body,
-        loc: loc(),
-        range: range()
-
+        loc: location()
     } }
-
-
 RepeatUntil =
     "repeat" ws body:BlockStatement ws? ( "until" / & { return eUnterminated("repeat", "until"); } )  ws  test:( Expression / &{return eMsg("repeat until needs terminations criteria"); })
     { return {
@@ -336,19 +272,13 @@ RepeatUntil =
             range: test.range
         },
         body: body,
-        loc: loc(),
-        range: range()
+        loc: location()
     } }
-
-
 That = "that" { return { "type": "ThisExpression" }; }
-
 SimpleExpression = (
-     Literal / ResetExpression / FunctionExpression / CallExpression / That / Identifier /
+    ResetExpression / FunctionExpression / CallExpression / That / Identifier / Literal /
     ObjectExpression / UnaryExpression / ParenExpr )
-
 Expression = AssignmentExpression / BinSimpleExpression
-
 BinSimpleExpression = 
     a:(MemberExpression/SimpleExpression) b:( ws? op:binop ws? (MemberExpression/SimpleExpression) )*
     {
@@ -360,19 +290,12 @@ BinSimpleExpression =
             tokens.push(v[1]);
             tokens.push(bhelper.translateExpressionIfNeeded(v[3]));
         }
-
         return precedenceClimber(tokens, a, 1);
     }
-
-
-
 unop = $("-" / "not" / "#")
 binop = $("+" / "-" / "==" / ">=" / "<=" / "~=" / ">" / "<" / ".." / "and" / "or" / "*" / "//" / "/" / "%" / "^" )
-
-
 prefixexp =
     funcname / '(' ws? e:Expression ws? ')' { return e; }
-
 CallExpression = 
     !("function" ws? "(") who:prefixexp a:(ws? (":" Identifier )? callsuffix)+
     {
@@ -387,14 +310,11 @@ CallExpression =
         }
         return left;
     } 
-
 callsuffix =
     a:args { return a; } /
     b:ObjectExpression { return [b]; } /
-    c:String { return [{type: "Literal", value: c, loc: loc(), range: range()}]; }
-
+    c:String { return [{type: "Literal", value: c, loc: location() }]; }
 ParenExpr = "(" ws? a:Expression ws? ")" {
-
     // Wraping a call in ()'s reduces it to a singel value
     if ( a.type == "CallExpression" ) {
         return bhelper.luaOperator("oneValue", a);
@@ -403,15 +323,10 @@ ParenExpr = "(" ws? a:Expression ws? ")" {
     }
     return a;
 }
-
 ResetExpression = 
     "..." {
         return wrapNode({type: "Identifier", name: "__lua$rest"});
     }
-
-
-
-
 funcname =
     a:(That/Identifier) b:( funcnamesuffix )*
     {
@@ -422,10 +337,8 @@ funcname =
             left = builder.memberExpression(left, b[i].exp, b[i].computed);
             if ( b[i].suggar ) left.selfSuggar = true;
         }
-
         return left;
     }
-
 funcnamesuffix = 
     ws? p:[.:] ws? e:Identifier 
     {
@@ -435,25 +348,21 @@ funcnamesuffix =
     {
         return {exp: e, suggar: false, computed: true }
     }
-
 explist = 
     a:Expression b:(ws? "," ws? e:(Expression / &{ return eMsg("Malformed argument list."); } ))*
     {
          return listHelper(a,b,3); 
     }
-
 varlist = 
 a:var b:(ws? "," ws? e:var)*
 {
      return listHelper(a,b,3); 
 } 
-
 namelist = 
     a:Identifier b:(ws? "," ws? e:Identifier)*
     {
          return listHelper(a,b,3); 
     } 
-
 args =
     "(" ws? a:explist ws? (")" / &{return eUnterminated(")", "argument list"); })
     {
@@ -463,9 +372,7 @@ args =
     {
         return []
     }
-
 var = MemberExpression / Identifier
-
 MemberExpression = 
     a:(CallExpression/SimpleExpression) b:indexer c:indexer*
     { 
@@ -475,36 +382,26 @@ MemberExpression =
         }
         return left;
     } 
-    
-
 indexer =
-    "[" ws? b:Expression ws? "]" { return [b, true]; } /
-    "." b:SimpleExpression { return [b,false]; }
-
-
-
+    ws? "[" ws? b:Expression ws? "]" { return [b, true]; } /
+    ws? "." b:SimpleExpression { return [b,false]; }
 ObjectExpression =
-    "{" ws? f:field? s:(ws? ("," / ";") ws? field)* ws? "}" 
+    "{" ws? f:field? s:(ws? ("," / ";") ws? field)* ws? (("," / ";") ws?)? "}" 
     { 
         var result = {
             type: "ObjectExpression",
             properties: [],
-            loc: loc(),
-            range: range()
+            loc: location()
         };
-
         var props = listHelper(f,s,3);
         var numeric = 0;
         var longProps = [];
         for ( var idx in props ) {
             var p = props[idx];
-
             if ( p.key === undefined ) p.key = {type: "Literal", value: ++numeric, arrayLike: true};
             p.kind = "init";
             result.properties.push(p);
         }
-
-
         if ( opt('decorateLuaObjects', false) ) {
             var last;
             var args = [];
@@ -525,15 +422,12 @@ ObjectExpression =
                 }
             }
             result.properties = pp;
-
             result = {type: "ArrayExpression", elements: longProps };
             if (pp.length < 1 ) result = {type:"Literal", value: null};
-
             return bhelper.luaOperator.apply(bhelper, ["makeTable", result, {type: "Literal", value:last}].concat(args)); 
         }
         else return result;
     }
-
 field =
                                           /* Otherwise we think it might be a multi assignment */
     n:(Literal/Identifier) ws? "=" ws? v:(BinSimpleExpression) 
@@ -549,57 +443,41 @@ field =
     {
         return { key: k, value: v }; 
     }
-
-
 FunctionDeclaration =
-    start:function ws? name:funcname ws? f:funcbody ws? end:("end"/) & { return eUntermIfEmpty(end, "function", "end", start); }
+    start:function ws? name:funcname ws? f:funcbody ws? end:("end") & { return eUntermIfEmpty(end, "function", "end", start); }
     {
-
-
-
         if ( name.type != "MemberExpression" && opt("allowRegularFunctions", false) ) {
             //TODO: this would need to be decorated
             return builder.functionDeclaration(name, f.params, f.body);
         }
-
         //TODO: Translate member expression into call
         var params = f.params.slice(0);
         if ( name.selfSuggar ) params = [{type: "Identifier", name: "self"}].concat(f.params);
-
         if ( f.rest ) {
             bhelper.injectRest(f.body.body, params.length);
         }
-
         var out = builder.functionExpression(null, params, f.body)
         if ( opt('decorateLuaObjects', false) ) {
             out = bhelper.luaOperator("makeFunction", out);
         }
-
         return bhelper.assign(name, out);
     }
-
 LocalFunction =
-    "local" ws start:function ws? name:funcname ws? f:funcbody ws? end:("end"/) & { return eUntermIfEmpty(end, "function", "end", start); }
+    "local" ws start:function ws? name:funcname ws? f:funcbody ws? end:("end") & { return eUntermIfEmpty(end, "function", "end", start); }
     {
-
         if ( f.rest ) {
             bhelper.injectRest(f.body.body, f.params.length);
         }
-
         if ( opt("allowRegularFunctions", false) )
             return builder.functionDeclaration(name, f.params, f.body);
-
         var func = builder.functionExpression(name, f.params, f.body);
         if ( opt('decorateLuaObjects', false) ) {
             func = bhelper.luaOperator("makeFunction", func);
         }
-
         var decl = {type: "VariableDeclarator", id: name, init: func};
         var out = builder.variableDeclaration("let", [ decl ]);
-
         return out;
     } 
-
 FunctionExpression = 
     f:funcdef 
     {
@@ -607,25 +485,18 @@ FunctionExpression =
             type: "FunctionExpression",
             body: f.body,
             params: f.params,
-            loc:loc(),
-            range:range()
-        }
-
+            loc:location() }
         if ( f.rest ) {
             bhelper.injectRest(f.body.body, f.params.length)
         }
-
         if ( opt('decorateLuaObjects', false) ) {
             return bhelper.luaOperator("makeFunction", result);
         } else {
             return result;
         }
-
     }
-
 funcdef = 
-    start:function ws? b:funcbody ws? end:("end"/) & { return eUntermIfEmpty(end, "function", "end", start); } { return b; }
-
+    start:function ws? b:funcbody ws? end:("end") & { return eUntermIfEmpty(end, "function", "end", start); } { return b; }
 funcbody = 
     "(" ws? p:paramlist ws? rest:("," ws? "..." ws?)? ")" ws? body:BlockStatement
     {
@@ -635,7 +506,6 @@ funcbody =
     {
         return { params: [], body: body, rest: true }
     }
-
 paramlist = 
     a:Identifier ws? b:("," ws? Identifier)*
     {
@@ -644,8 +514,6 @@ paramlist =
     ws? { 
         return [] 
     }
-
-
 UnaryExpression =
     o:unop ws? e:(MemberExpression/SimpleExpression/Expression)
     { 
@@ -659,44 +527,35 @@ UnaryExpression =
             operator: ops[o],
             argument: bhelper.translateExpressionIfNeeded(e),
             prefix: true,
-            loc: loc(),
-            range: range()
+            loc: location()
         }
     }
-
 Identifier =
     name:Name
     { return {
         type: "Identifier",
         name: name,
-        loc: loc(),
-        range: range()
+        loc: location()
     } }
-
 Literal = 
     a: ("nil" / "false" / "true") 
     {
         var values = {"nil": null, "false": false, "true": true} 
-        return { type: "Literal", value: values[a], loc: loc(), range: range() }
-
+        return { type: "Literal", value: values[a], loc: location() }
     } / 
     b: Number [eE] c:$(("-" / "+")? [0-9]+)
     {
-        return { type: "Literal", value: parseFloat(b) * Math.pow(10, parseInt(c)), loc: loc(), range: range()  }
-
+        return { type: "Literal", value: parseFloat(b) * Math.pow(10, parseInt(c)), loc: location() }
     } /
-    b: "0" [Xx] b:$([0-9a-fA-F]+)
+    a: "0" [Xx] b:$([0-9a-fA-F]+)
     {
-        return { type: "Literal", value: parseInt(b), loc: loc(), range: range()  }
-
+        return { type: "Literal", value: parseInt(b), loc: location() }
     } /
     b: Number
     {
-        return { type: "Literal", value: parseFloat(b), loc: loc(), range: range()  }
-
+        return { type: "Literal", value: parseFloat(b), loc: location() }
     } /
     s: String
     {
-        return { type: "Literal", value: s, loc: loc(), range: range()  }
-
+        return { type: "Literal", value: s, loc: location() }
     }

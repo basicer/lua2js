@@ -1,6 +1,4 @@
 {
-  function loc() { return {start: { line: line(), column: column() } } }
-  function range() { return [offset(), offset() + text().length]; }
   function listHelper(a,b,c) { return a == null ? [] : [a].concat(b.map(function(b) { return b[c || 2]; })); }
   function opt(name, def) { return name in options ? options[name] : def }
 
@@ -16,8 +14,7 @@
 
   function wrapNode(obj, hasScope) {
     hasScope = !!hasScope 
-    obj.loc = loc();
-    obj.range = range();
+    obj.loc = location();
     obj.hasScope = hasScope;
     obj.text = text();
     return obj;
@@ -29,16 +26,17 @@
   }
 
   function eUnterminated(type, end, start) {
-    var xline = start !== undefined ? start.loc.start.line : (line());
-    var xcol = start !== undefined ? start.loc.start.column : (column());
+    var loc = start !== undefined && location();
+    var xline = loc ? start.loc.start.line : (loc.start.line);
+    var xcol = loc ? start.loc.start.column : (loc.start.column);
 
-    eMsg("`" + (end || "end") + "` expected (to close " + type + " at " + xline + ":" + xcol + ") at " + line() +  ":" + column() );
+    eMsg("`" + (end || "end") + "` expected (to close " + type + " at " + xline + ":" + xcol + ")" );
     return true;
   }
 
   function eMsg(why) {
     if ( !opt("loose", false) ) error(why);
-    errors.push({msg: why, loc: loc(), range: range()});
+    errors.push({msg: why, loc: location()});
     return true;
   }
 
@@ -275,7 +273,7 @@
             return bhelper.luaOperator(map[op], a, b);
         } else {
 
-            if ( op == "~=" ) xop = "!=";
+            if ( op == "~=" ) op = "!=";
             else if ( op == ".." ) op = "+";
             else if ( op == "or" ) op = "||";
             else if ( op == "and" ) op = "&&";
