@@ -532,16 +532,16 @@ env.table = {
 	},
 	remove: null,
 	sort: function(table, comp) {
-    var tcomp;
-    if (comp) {
-      tcomp = function(a,b) { return comp(a,b) ? -1 : 1; };
-    }
-    if ( __lua.isTable(table) ) {
-      table.numeric.sort(tcomp);
-    } else if ( __lua.isJSArray(table) ) {
-      table.sort(tcomp);
-    }
-  },
+		var tcomp;
+		if (comp) {
+			tcomp = function(a,b) { return comp(a,b) ? -1 : 1; };
+		}
+		if ( __lua.isTable(table) ) {
+			table.numeric.sort(tcomp);
+		} else if ( __lua.isJSArray(table) ) {
+			table.sort(tcomp);
+		}
+	},
 	unpack: function(table,i,j) {
 		if ( i === undefined || i === null ) i = 1;
 		if ( j === undefined || j === null ) j = __lua.count(table);
