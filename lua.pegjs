@@ -14,14 +14,14 @@ BlockStatement =
         return builder.blockStatement(ret === null ? list : list.concat([ret[1]])); 
     } 
 StatementList = 
-    a:Statement? b:(scws+ Statement )* (ws? ";" ws?)*
+    a:Statement? b:(scws+ Statement )* (ws? ";")*
     {  
         if ( a === null ) return [];
         if ( b === null ) return a;
         return listHelper(a,b,1);
     } 
 ReservedWord = rw:("if" / "then" / "elseif" / "else" / "do" / "end" / "return" / "local" / "nil" / "true" / "false"
-    "function" / "not" / "break" / "for" / "until" / "function" / binop / unop) (ws / !.) { return rw }
+    "function" / "not" / "break" / "for" / "until" / "function" / "while" / binop / unop) ![a-z] { return rw }
 Name = !(ReservedWord) a:$([a-zA-Z_][a-zA-Z0-9_]*) { return a; }
 Number = $([0-9]+("." [0-9]+)?)
 stringchar =
@@ -64,7 +64,6 @@ Statement =
     LocalAssingment /
     FunctionDeclaration /
     LocalFunction /
-    DoEndGrouped /
     !(ws? ReservedWord) e:$Expression &{ return eMsg("Found an expression but expected a statement: " + e)} { return builder.emptyStatement(); } /
     !(ws? ReservedWord) e:$Identifier &{ return eMsg("`=` expected")} { return builder.emptyStatement(); } /
     !(ws? ReservedWord) e:$[^\n\t\r ] [^\n]* ([\n]/!.) &{ return eMsg("Parser error near `" + e + "`"); } { return builder.emptyStatement(); }
@@ -73,8 +72,9 @@ Debugger =
     "debugger"
     { return {type: "ExpressionStatement", expression: {type: "Identifier", name:"debugger; "} } }
 DoEndGrouped = 
-    start:do ws? b:BlockStatement ws? end:("end") & { return eUntermIfEmpty(end, "do", "end", start); }
-    { return b }
+    start:do ws b:(BlockStatement ws)? end:("end") & { return eUntermIfEmpty(end, "do", "end", start); }
+    { return b ? b[0] : {type: "BlockStatement", body: []}; }
+
 if = "if" { return wrapNode({}); }
 do = "do" { return wrapNode({}); }
 for = "for" { return wrapNode({}); }
@@ -94,6 +94,10 @@ NumericFor =
         } else {
             texp = bhelper.luaOperator("forcomp", updateBy.id, idx.id, testValue.id);
         }
+
+        if ( !body ) body = {type: "BlockStatement", body: []};
+        else body = body[0];
+
         body.body.unshift(builder.variableDeclaration("let",[
             {
                     type: "VariableDeclarator",
@@ -252,11 +256,11 @@ ReturnStatement =
             loc: location() }     
     }
 WhileStatement =
-    "while" ws test:Expression ws "do" ws body:BlockStatement ws ( "end" / & { return eUnterminated("if"); } ) 
+    "while" ws test:Expression ws "do" ws body:(BlockStatement ws)? ( "end" / & { return eUnterminated("if"); } ) 
     { return {
         type: "WhileStatement",
         test: test,
-        body: body,
+        body: body ? body[0] : {type: "EmptyStatement"},
         loc: location()
     } }
 RepeatUntil =

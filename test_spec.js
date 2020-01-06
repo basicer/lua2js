@@ -93,8 +93,33 @@ tests = [
         'o = g()',
         'return json(o) .. " " .. eval("(function(x) { return x.__luaType; })(o)")',
         ],'{"x":1,"y":20} table'
+    ],
+    [
+        [
+        'eval("var array = [1,1,2,5,7];")',
+        'return array[4]'
+        ],5
+    ],
+    [
+        [
+        'eval("var array = [1,1,2,5,7];")',
+        'out = "pairs"',
+        'for k,v in pairs(array) do out = out .. " " .. k .. "," .. v end',
+        'return out'
+        ],'pairs 1,1 2,1 3,2 4,5 5,7'
+    ],
+    [
+        [
+        'eval("var array = [1,1,2,5,7];")',
+        'out = "ipairs"',
+        'for k,v in ipairs(array) do out = out .. " " .. k .. "," .. v end',
+        'return out'
+        ],'ipairs 1,1 2,1 3,2 4,5 5,7'
+    ],
+    [
+	['while false do end'],
+	void 0
     ]
-
 
 ];
 

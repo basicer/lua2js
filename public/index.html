@@ -13,23 +13,23 @@
   <title>Lua 2 JS</title>
 
   <!-- Bootstrap core CSS -->
-  <link href="http://bootswatch.com/darkly/bootstrap.css" rel="stylesheet">
+  <link href="https://bootswatch.com/3/darkly/bootstrap.css" rel="stylesheet">
 
   <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
       <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
       <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
       <![endif]-->
-      <script src="//code.jquery.com/jquery-1.11.1.min.js"></script>
+      <script src="https://code.jquery.com/jquery-1.11.1.min.js"></script>
       <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.16/angular.min.js"></script>
-      <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.1.3/ace.js"></script>
-      <script src="ui-ace.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.1.3/ace.js"></script>
+      <script src="http://angular-ui.github.io/ui-ace/dist/ui-ace.min.js"></script>
       <script src="piler.js"></script>
       <script src="stdlib.js"></script>
       <script src="https://estools.github.io/escodegen/escodegen.browser.js"></script>
-      <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.1.3/mode-lua.js"></script>
-      <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.1.3/mode-javascript.js"></script>
-      <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.1.3/mode-lua.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.1.3/mode-javascript.js"></script>
+      <script src="https://netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
       <style>
       .ace_editor { height: 500px; background-color: black; }
       textarea { width:100%; height: 100px; font-size: 14pt }
@@ -122,8 +122,9 @@
 <script type="text/javascript">
 
   __lua.env.print = __lua.makeFunction(function print() { 
-    stdout += Array.prototype.join.apply(arguments, ["\t"]) + "\n";
-    console.log.apply(console, arguments); 
+    var args = Array.prototype.map.call(arguments, __lua.makeString);
+    stdout += Array.prototype.join.call(args, "\t") + "\n";
+    console.log.apply(console, args); 
   });
 
   print = __lua.env.print;
@@ -136,8 +137,8 @@ function update($scope) {
     var c = parser.parse($scope.code, $scope.opts);
     $scope.code2 = "(function()\n" + escodegen.generate(c) + ")();";
   } catch ( e ) {
-
-    $scope.error = e.message + "\n\n\n" + "at " + e.line + ":" + e.column;
+    var errloc = e.location.start;
+    $scope.error = e.message + "\n\n\n" + "at " + errloc.line + ":" + errloc.column;
     $scope.code2 = "";
   }
 }
