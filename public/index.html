@@ -137,8 +137,12 @@ function update($scope) {
     var c = parser.parse($scope.code, $scope.opts);
     $scope.code2 = "(function()\n" + escodegen.generate(c) + ")();";
   } catch ( e ) {
-    var errloc = e.location.start;
-    $scope.error = e.message + "\n\n\n" + "at " + errloc.line + ":" + errloc.column;
+    if (e.location) {
+      var errloc = e.location.start;
+      $scope.error = e.message + "\n\n\n" + "at " + errloc.line + ":" + errloc.column;
+    } else {
+      $scope.error = e.message
+    }
     $scope.code2 = "";
   }
 }

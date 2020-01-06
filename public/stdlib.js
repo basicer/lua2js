@@ -496,7 +496,6 @@ env.string = {
 		if ( j < 0 ) j += (s.length+1);
 
 		return __lua.makeString(s).substring(i-1,j);
-
 	},
 	upper: function lower(s) { return ("" + s).toUpperCase(); },
 	format: function format(format, etc) {
@@ -532,7 +531,17 @@ env.table = {
 		return __lua.makeTable(obj);
 	},
 	remove: null,
-	sort: function sort(table) { return table; },
+	sort: function(table, comp) {
+    var tcomp;
+    if (comp) {
+      tcomp = function(a,b) { return comp(a,b) ? -1 : 1; };
+    }
+    if ( __lua.isTable(table) ) {
+      table.numeric.sort(tcomp);
+    } else if ( __lua.isJSArray(table) ) {
+      table.sort(tcomp);
+    }
+  },
 	unpack: function(table,i,j) {
 		if ( i === undefined || i === null ) i = 1;
 		if ( j === undefined || j === null ) j = __lua.count(table);
@@ -549,21 +558,12 @@ env.table = {
 		}
 
 		return __lua.makeMultiReturn.apply(__lua, arr);
-
-
 	}
-
 };
 
 env.unpack = env.table.unpack;
-
-env.tonumber = function(n) {
-	return parseInt(n);
-};
-
-env.tostring = function(n) {
-	return __lua.makeString(n);
-};
+env.tonumber = parseInt;
+env.tostring = __lua.makeString;
 
 env.os = {
 	clock: null,
@@ -725,7 +725,7 @@ var reduce = function reduce(arr, op) {
 env.bit32 = {
 	band: function band() { return reduce(arguments, function(a,b) { return a & b; }); },
 	bor: function bor() { return reduce(arguments, function(a,b) { return a | b; }); },
-	bxor: function bxor() { return reduce(arguments, function(a,b) { return a | b; }); },
+	bxor: function bxor() { return reduce(arguments, function(a,b) { return a ^ b; }); },
 
 	rshift: function rshift(b, disp) { return b >> disp; }
 };

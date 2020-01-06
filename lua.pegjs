@@ -264,7 +264,7 @@ WhileStatement =
         loc: location()
     } }
 RepeatUntil =
-    "repeat" ws body:BlockStatement ws? ( "until" / & { return eUnterminated("repeat", "until"); } )  ws  test:( Expression / &{return eMsg("repeat until needs terminations criteria"); })
+    "repeat" ws body:(BlockStatement ws)? ( "until" / & { return eUnterminated("repeat", "until"); } )  ws  test:( Expression / &{return eMsg("repeat until needs terminations criteria"); })
     { return {
         type: "DoWhileStatement",
         test: { 
@@ -272,10 +272,9 @@ RepeatUntil =
             operator: "!",
             argument: test,
             prefix: true,
-            loc: test.loc,
-            range: test.range
+            loc: test.loc
         },
-        body: body,
+        body: body ? body[0] : {type: "EmptyStatement"},
         loc: location()
     } }
 That = "that" { return { "type": "ThisExpression" }; }
