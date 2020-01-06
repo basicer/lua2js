@@ -345,7 +345,7 @@ var __lua = (function() {
 
 			var idx = table.__metatable.__newindex;
 			if ( idx === null || idx === undefined ) {
-				if ( typeof pop == "number") table.numeric[prop] = value;
+				if ( typeof prop == "number") table.numeric[prop-1] = value;
 				else table.hash[prop] = value;
 				return true;	
 			}
