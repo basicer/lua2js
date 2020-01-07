@@ -6,7 +6,7 @@ var vm = require("vm");
 
 var helpers = fs.readFileSync("helpers.js").toString();
 var lang = fs.readFileSync("lua.pegjs").toString();
-var parser = peg.buildParser(helpers + lang);
+var parser = peg.generate(helpers + lang);
 var exec = require('child_process').exec;
 
 function leval(src) {

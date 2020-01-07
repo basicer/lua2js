@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "set DEBUG=express:* & node server.js",
-    "test": "./node_modules/jasmine-node/bin/jasmine-node ./test_spec.js"
+    "test": "jasmine-node ./test_spec.js"
   },
   "repository": {
     "type": "git",

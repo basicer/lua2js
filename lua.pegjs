@@ -80,7 +80,7 @@ do = "do" { return wrapNode({}); }
 for = "for" { return wrapNode({}); }
 function = "function" { return wrapNode({}); }
 NumericFor =
-    start:for ws a:Identifier ws? "=" ws? b:Expression ws? "," ws? c:Expression d:( ws? "," ws? Expression )? ws? "do" ws? body:BlockStatement ws? end:("end") &{ return eUntermIfEmpty(end, "for", "end", start); } 
+    start:for ws a:Identifier ws? "=" ws? b:Expression ws? "," ws? c:Expression d:( ws? "," ws? Expression )? ws? "do" ws? body:(BlockStatement ws)? end:("end") &{ return eUntermIfEmpty(end, "for", "end", start); } 
     {
         var amount = d == null ? {type: "Literal", value: 1 } : d[3];
         var start = bhelper.tempVar(b);
