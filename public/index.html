@@ -121,13 +121,13 @@
 </div><!-- /.modal -->
 <script type="text/javascript">
 
-  __lua.env.print = __lua.makeFunction(function print() { 
-    var args = Array.prototype.map.call(arguments, __lua.makeString);
-    stdout += Array.prototype.join.call(args, "\t") + "\n";
-    console.log.apply(console, args); 
-  });
+__lua.env.print = __lua.makeFunction(function print() { 
+  var args = Array.prototype.map.call(arguments, __lua.makeString);
+  stdout += Array.prototype.join.call(args, "\t") + "\n";
+  console.log.apply(console, args); 
+});
 
-  print = __lua.env.print;
+print = __lua.env.print;
 
 var myAppModule = angular.module('MyApp', ['ui.ace']);
 function update($scope) {

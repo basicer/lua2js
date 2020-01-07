@@ -609,7 +609,9 @@ env.pairs = function pairs(table) {
 		for ( var i = 0; i < table.numeric.length; ++i ) list.push([i + 1, i, table.numeric]);
 		for ( var idx in table.hash ) list.push([idx, idx, table.hash]);
 	} else if ( __lua.isJSArray(table) ) {
-		for ( var i = 0; i < table.length; ++i ) list.push([i + 1, i, table]);
+		for ( var i in table ) {
+			list.push([isNaN(i) ? i : parseInt(i) + 1, i, table]);
+		}
 	} else {
 		var keys = Object.keys(table);
 		for ( var idx in keys ) list.push([keys[idx], keys[idx], table]);

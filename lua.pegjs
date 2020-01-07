@@ -357,10 +357,10 @@ explist =
          return listHelper(a,b,3); 
     }
 varlist = 
-a:var b:(ws? "," ws? e:var)*
-{
-     return listHelper(a,b,3); 
-} 
+    a:var b:(ws? "," ws? e:var)*
+    {
+         return listHelper(a,b,3); 
+    } 
 namelist = 
     a:Identifier b:(ws? "," ws? e:Identifier)*
     {
@@ -391,45 +391,50 @@ indexer =
 ObjectExpression =
     "{" ws? f:field? s:(ws? ("," / ";") ws? field)* ws? (("," / ";") ws?)? "}" 
     { 
-        var result = {
-            type: "ObjectExpression",
-            properties: [],
-            loc: location()
-        };
+        var result;
         var props = listHelper(f,s,3);
-        var numeric = 0;
-        var longProps = [];
+        var arrProps = [];
+        var kvProps = [];
         for ( var idx in props ) {
             var p = props[idx];
-            if ( p.key === undefined ) p.key = {type: "Literal", value: ++numeric, arrayLike: true};
-            p.kind = "init";
-            result.properties.push(p);
+            if ( p.key === undefined ) {
+                arrProps.push(p.value);
+            } else {
+                p.kind = "init";
+                kvProps.push(p);
+            }
         }
         if ( opt('decorateLuaObjects', false) ) {
-            var last;
-            var args = [];
-            var pp = [];
-            var last = true;
-            for ( var idx in result.properties ) {
-                var p = result.properties[idx];
-                if ( p.key.arrayLike ) {
-                    args.push(p.value);
-                    last = true;
-                } else {
-                    longProps.push({
-                        type: "ArrayExpression",
-                        elements: [p.key, p.value]
-                    });
-                    pp.push(p);
-                    last = false;
-                }
+            var last = false;
+            if (kvProps.length) {
+                result = { type: "ArrayExpression", elements: kvProps.map(p => {
+                    return { type: "ArrayExpression", elements: [p.key, p.value] };
+                }) };
+            } else {
+                last = true;
+                result = { type:"Literal", value: null };
             }
-            result.properties = pp;
-            result = {type: "ArrayExpression", elements: longProps };
-            if (pp.length < 1 ) result = {type:"Literal", value: null};
-            return bhelper.luaOperator.apply(bhelper, ["makeTable", result, {type: "Literal", value:last}].concat(args)); 
+            return bhelper.luaOperator.apply(bhelper, ["makeTable", result,
+                    { type: "Literal", value: last }].concat(arrProps)); 
+        } else {
+            result = {
+                loc: location()
+            };
+            if (kvProps.length) {
+                result.type = "ObjectExpression";
+                result.properties = arrProps.map((val, idx) => {
+                    return {
+                        key: { type: "Literal", value: idx + 1 },
+                        kind: "init",
+                        value: val
+                    }
+                }).concat(kvProps)
+            } else {
+                result.type = "ArrayExpression";
+                result.elements = arrProps;
+            }
+            return result;
         }
-        else return result;
     }
 field =
                                           /* Otherwise we think it might be a multi assignment */
