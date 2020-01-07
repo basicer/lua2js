@@ -320,7 +320,7 @@
                     var rexpr = builder.memberExpression(tmp.id, callee.property, callee.computed);
                     var rcallee = bhelper.translateExpressionIfNeeded(rexpr);
                     var expr = bhelper.luaOperator.apply(bhelper, ["call", flagso, rcallee, tmp.id, helper].concat(args));
-                    return result = bhelper.encloseDeclsEx([
+                    return bhelper.encloseDeclsEx([
                         builder.returnStatement(
                             expr
                         )
