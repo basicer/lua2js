@@ -21,7 +21,7 @@ StatementList =
         return listHelper(a,b,1);
     } 
 ReservedWord = rw:("if" / "then" / "elseif" / "else" / "do" / "end" / "return" / "local" / "nil" / "true" / "false"
-    "function" / "not" / "break" / "for" / "until" / "function" / "while" / binop / unop) ![a-z] { return rw }
+    / "function" / "not" / "break" / "for" / "until" / "while" / binop / unop) ![a-z] { return rw }
 Name = !(ReservedWord) a:$([a-zA-Z_][a-zA-Z0-9_]*) { return a; }
 Number = $([0-9]+("." [0-9]+)?)
 stringchar =
@@ -549,21 +549,21 @@ Literal =
     a: ("nil" / "false" / "true") 
     {
         var values = {"nil": null, "false": false, "true": true} 
-        return { type: "Literal", value: values[a], loc: location() }
+        return wrapNode({ type: "Literal", value: values[a] })
     } / 
     b: Number [eE] c:$(("-" / "+")? [0-9]+)
     {
-        return { type: "Literal", value: parseFloat(b) * Math.pow(10, parseInt(c)), loc: location() }
+        return wrapNode({ type: "Literal", value: parseFloat(b) * Math.pow(10, parseInt(c)) })
     } /
     a: "0" [Xx] b:$([0-9a-fA-F]+)
     {
-        return { type: "Literal", value: parseInt(b), loc: location() }
+        return wrapNode({ type: "Literal", value: parseInt(b, 16) })
     } /
     b: Number
     {
-        return { type: "Literal", value: parseFloat(b), loc: location() }
+        return wrapNode({ type: "Literal", value: parseFloat(b) })
     } /
     s: String
     {
-        return { type: "Literal", value: s, loc: location() }
+        return wrapNode({ type: "Literal", value: s })
     }

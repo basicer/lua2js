@@ -90,7 +90,9 @@ var __lua = (function() {
 		var mtf = lookupMetaTableBin(a, b, "__mod");
 		if ( mtf !== null ) return mtf(a,b);
 
-		return numberForArith(a) % numberForArith(b);
+		var bnum = numberForArith(b)
+		var jsmod = numberForArith(a) % bnum
+		return jsmod < 0 ? jsmod + bnum : jsmod;
 	}
 
 	function pow(a,b) { 
@@ -312,7 +314,7 @@ var __lua = (function() {
 
 	function index(table, prop, helper) {
 		if ( table === null || table === undefined || typeof table !== "object" &&
-            !(typeof table === "function" && table.hasOwnProperty('prototype'))) {
+				!(typeof table === "function" && table.hasOwnProperty('prototype'))) {
 			if ( helper == undefined ) {
 				throw "attempt to index a " + type(table) + " value";
 			} else {
@@ -322,7 +324,7 @@ var __lua = (function() {
 		
 		if ( prop === undefined || prop === null ) throw "table index is nil";
 
-        var rget;
+		var rget;
 		if ( table instanceof LuaTable ) {
 			rget = __ltRawGet;
 		} else if ( isJSArray(table) ) {
@@ -330,17 +332,17 @@ var __lua = (function() {
 		} else { // JS Object
 			rget = __objRawGet;
 		}
-        // main logic
-        var val = rget(table, prop);
-        if ( table.__metatable === undefined || (val !== null && val !== undefined) ) {
-            return val;
-        }
-        
-        var idxfx = lookupMetaTable(table, "__index");
-        if ( idxfx == null ) return null;
+		// main logic
+		var val = rget(table, prop);
+		if ( table.__metatable === undefined || (val !== null && val !== undefined) ) {
+			return val;
+		}
+		
+		var idxfx = lookupMetaTable(table, "__index");
+		if ( idxfx == null ) return null;
 
-        if ( typeof idxfx == "function" ) return oneValue(idxfx(table, prop));
-        return index(idxfx, prop);
+		if ( typeof idxfx == "function" ) return oneValue(idxfx(table, prop));
+		return index(idxfx, prop);
 	}
 
 	function indexAssign(table, prop, value, helper) {
@@ -610,7 +612,7 @@ env.assert = function assert(what, msg, code) {
 
 	if ( !!what ) return what;
 
-	throw("Assert Failed!! " + code);
+	throw("Assertion Failed!! " + code);
 };
 
 env.type = function type(what) {

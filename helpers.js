@@ -26,9 +26,9 @@
   }
 
   function eUnterminated(type, end, start) {
-    var loc = start !== undefined && location();
-    var xline = loc ? start.loc.start.line : (loc.start.line);
-    var xcol = loc ? start.loc.start.column : (loc.start.column);
+    var loc = start !== undefined || location();
+    var xline = loc ? loc.start.line : start.loc.start.line;
+    var xcol = loc ? loc.start.column : start.loc.start.column;
 
     eMsg("`" + (end || "end") + "` expected (to close " + type + " at " + xline + ":" + xcol + ")" );
     return true;
@@ -272,7 +272,6 @@
             
             return bhelper.luaOperator(map[op], a, b);
         } else {
-
             if ( op == "~=" ) op = "!=";
             else if ( op == ".." ) op = "+";
             else if ( op == "or" ) op = "||";
@@ -356,7 +355,6 @@
             if ( !exp.computed ) prop = {"type": "Literal", value: prop.name };
             var nu = bhelper.memberExpression(bhelper.translateExpressionIfNeeded(exp.object), prop, false);
             nu.origional = exp;
-            nu.range = exp.range;
             nu.loc = exp.loc;
             return nu;
         }
