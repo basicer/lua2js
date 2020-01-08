@@ -311,7 +311,8 @@ var __lua = (function() {
 	};
 
 	function index(table, prop, helper) {
-		if ( table === null || table === undefined || typeof table !== "object" ) {
+		if ( table === null || table === undefined || typeof table !== "object" &&
+            !(typeof table === "function" && table.hasOwnProperty('prototype'))) {
 			if ( helper == undefined ) {
 				throw "attempt to index a " + type(table) + " value";
 			} else {
