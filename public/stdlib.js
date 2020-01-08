@@ -599,7 +599,7 @@ env.os = {
 };
 
 env.io = {
-	write: function() { env.print(arguments); }
+	write: function() { env.print(...arguments); }
 };
 
 env.error = function error(s) { throw s; };
