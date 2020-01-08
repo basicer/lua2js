@@ -145,8 +145,6 @@
                 nue = bhelper.luaOperator("indexAssign", nue, prop, exp, {type:"Literal", value: helper});
             }
 
-            nue = {type: "ConditionalExpression",test: nue, consequent: exp, alternate: out};
-
             out = nue;
         }
             

@@ -280,90 +280,108 @@ var __lua = (function() {
 		if ( mt == null ) return lookupMetaTable(b, entry);
 		return mt;
 	}
+	
+	// rawget and rawset helper functions
+	function __ltRawSet (table, prop, value) {
+		if ( typeof prop == "number") table.numeric[prop-1] = value;
+		else table.hash[prop] = value;
+	};
+	
+	function __ltRawGet (table, prop) {
+		if ( typeof prop == "number" ) return table.numeric[prop-1];
+		else return table.hash[prop];
+	}
+	
+	function __arrRawSet (table, prop, value) {
+		if ( typeof prop == "number") table[prop-1] = value;
+		else table[prop] = value;
+	};
+	
+	function __arrRawGet (table, prop) {
+		if ( typeof prop == "number") return table[prop-1];
+		return table[prop];
+	};
+	
+	function __objRawSet (table, prop, value) {
+		return table[prop] = value;
+	};
+	
+	function __objRawGet (table, prop) {
+		return table[prop];
+	};
 
 	function index(table, prop, helper) {
-		if ( table === null || table === undefined || typeof table == "number" ) {
+		if ( table === null || table === undefined || typeof table !== "object" ) {
 			if ( helper == undefined ) {
 				throw "attempt to index a " + type(table) + " value";
 			} else {
 				throw "attempt to index '" + helper + "' (a " + type(table) + " value)";
 			}
-		} else if ( table instanceof LuaTable ) {
-			var val;
-			if ( typeof prop == "number") val = table.numeric[prop-1];
-			else val = table.hash[prop];
-
-			if ( val !== null & val !== undefined ) return val;
-
-			var idxfx = lookupMetaTable(table, "__index");
-			if ( idxfx == null ) return null;
-
-			if ( typeof idxfx == "function" ) return oneValue(idxfx(table, prop));
-			return index(idxfx, prop);
-		} else if ( isJSArray(table) ) {
-			return table[prop - 1];
-		} else if ( typeof table == "string" ) {
-			var sidx = tonumber(prop);
-			if ( sidx < 0 ) sidx += (table.length + 1);
-			return table[sidx-1];
-		} else {
-			return table[prop];
 		}
+		
+		if ( prop === undefined || prop === null ) throw "table index is nil";
+
+        var rget;
+		if ( table instanceof LuaTable ) {
+			rget = __ltRawGet;
+		} else if ( isJSArray(table) ) {
+			rget = __arrRawGet;
+		} else { // JS Object
+			rget = __objRawGet;
+		}
+        // main logic
+        var val = rget(table, prop);
+        if ( table.__metatable === undefined || (val !== null && val !== undefined) ) {
+            return val;
+        }
+        
+        var idxfx = lookupMetaTable(table, "__index");
+        if ( idxfx == null ) return null;
+
+        if ( typeof idxfx == "function" ) return oneValue(idxfx(table, prop));
+        return index(idxfx, prop);
 	}
 
 	function indexAssign(table, prop, value, helper) {
-
-		if ( table === null || table === undefined || typeof table == "number" ) {
+		if ( table === null || table === undefined || typeof table !== "object" ) {
 			if ( helper == undefined ) {
 				throw "attempt to index a " + type(table) + " value";
 			} else {
 				throw "attempt to index '" + helper + "' (a " + type(table) + " value)";
 			}
 		}
+		
+		if ( prop === undefined || prop === null ) throw "table index is nil";
 
+		var rset, rget;
 		if ( table instanceof LuaTable ) {
-			var val;
-
-			if ( prop === undefined || prop === null ) throw "table index is nil";
-
-			if ( typeof prop == "number" ) val = table.numeric[prop-1];
-			else val = table.hash[prop];
-
-			if ( val !== null & val !== undefined ) {
-				if ( typeof prop == "number") table.numeric[prop-1] = value;
-				else table.hash[prop] = value;
-				return true;
-			}
-
-			if ( table.__metatable === undefined ) {
-				if ( typeof prop == "number") table.numeric[prop-1] = value;
-				else table.hash[prop] = value;
-				return true;
-			}
-
-
-
-			var idx = table.__metatable.__newindex;
-			if ( idx === null || idx === undefined ) {
-				if ( typeof prop == "number") table.numeric[prop-1] = value;
-				else table.hash[prop] = value;
-				return true;	
-			}
-
-			if ( typeof idx == "function" ) idx(table, prop, value);
-			else indexAssign(idx, prop, value);
-
-			return true;
-
-
-		} else if ( typeof table == "string" ) { 
-			throw "attempt to index string value";
+			rset = __ltRawSet;
+			rget = __ltRawGet;
 		} else if ( isJSArray(table) ) {
-			table[prop-1] = value;
-			return true;
-		} else {
-			return false;
+			rset = __arrRawSet;
+			rget = __arrRawGet;
+		} else { // JS Object
+			rset = __objRawSet;
+			rget = __objRawGet;
 		}
+		// main logic
+		if ( table.__metatable === undefined ) {
+			return rset(table, prop, value);
+		}
+
+		var val = rget(table, prop)
+
+		if ( val !== null && val !== undefined ) {
+			return rset(table, prop, value);
+		}
+
+		var idx = table.__metatable.__newindex;
+		if ( idx === null || idx === undefined ) {
+			return rset(table, prop, value);
+		}
+		
+		if ( typeof idx == "function" ) return idx(table, prop, value);
+		else return indexAssign(idx, prop, value);
 	}
 
 	function oneValue(v) {
@@ -706,7 +724,6 @@ env.something = function something(table) {
 env.math = Math;
 
 env.setmetatable = function setmetatable(target, meta) {
-
 	Object.defineProperty(target, "__metatable", {value: meta, enumerable: false, configurable: true });
 	return target;
 };
