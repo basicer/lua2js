@@ -165,9 +165,15 @@ LocalAssingment =
         if ( !opt('decorateLuaObjects', false) || ( left.length < 2 && right.length < 2 )) {
             for ( var i = 0; i < left.length; ++i ) {
                 if ( i !==  right.length - 1 || i ===  left.length - 1 ) {
-                    if ( right[i].type !== "Identifier" && right[i].type !== "Literal" ) {
+                    if ( right[i] !== undefined && right[i].type !== "Identifier" && right[i].type !== "Literal" ) {
                         right[i] = bhelper.luaOperator("oneValue", right[i]);
                     }
+                    result.declarations.push({
+                        type: "VariableDeclarator",
+                        id: left[i],
+                        init: right[i]
+                    });
+                } else if ( right[i].type === "Identifier" || right[i].type === "Literal" ) {
                     result.declarations.push({
                         type: "VariableDeclarator",
                         id: left[i],
