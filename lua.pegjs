@@ -162,24 +162,36 @@ LocalAssingment =
     "local" ws left:namelist ws? "=" ws? right:explist
     { 
         var result = builder.variableDeclaration("let", []);
-        if ( !opt('decorateLuaObjects', false) || ( left.length < 2 && right.length < 2 )) { 
+        if ( !opt('decorateLuaObjects', false) || ( left.length < 2 && right.length < 2 )) {
             for ( var i = 0; i < left.length; ++i ) {
-                result.declarations.push(            {
-                    type: "VariableDeclarator",
-                    id: left[i],
-                    init: right[i],
-                });
+                if ( i !==  right.length - 1 || i ===  left.length - 1 ) {
+                    if ( right[i].type !== "Identifier" && right[i].type !== "Literal" ) {
+                        right[i] = bhelper.luaOperator("oneValue", right[i]);
+                    }
+                    result.declarations.push({
+                        type: "VariableDeclarator",
+                        id: left[i],
+                        init: right[i]
+                    });
+                } else {
+                    left = left.slice(i);
+                    result.declarations = result.declarations.concat(left.map(x => {
+                        return { type: "VariableDeclarator", id: x };
+                    }));
+                    var assign = bhelper.bulkAssign(left, [ right[i] ]);
+                    return [result, assign];
+                }
             }
             return result;
         } else {
-            var assign = bhelper.bulkAssign(left, right)
+            var assign = bhelper.bulkAssign(left, right);
             for ( var i = 0; i < left.length; ++i ) {
                 result.declarations.push({
                     type: "VariableDeclarator",
                     id: left[i]
                 });
             }
-            return [result, assign];   
+            return [result, assign];
         }
     }/
     "local" ws left:namelist
@@ -237,11 +249,7 @@ ReturnStatement =
         if ( argument == null ) { }
         else if ( argument.length == 1 ) arg = argument[0];
         else if ( argument.length > 1 ) {
-            if ( opt('decorateLuaObjects', false) ) arg = bhelper.luaOperatorA("makeMultiReturn", argument);
-            else  arg = {
-                type: "ArrayExpression",
-                elements: argument
-            };            
+            arg = bhelper.luaOperatorA("makeMultiReturn", argument);
         }
         return {
             type: "ReturnStatement",

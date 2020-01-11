@@ -211,7 +211,7 @@ var __lua = (function() {
 	}
 
 	function rest(args, cnt) {
-		var out = Object.create(LuaReturnValues.prototype, {});
+		var out = Object.create(LuaArgList.prototype, {});
 		out.values = Array.prototype.slice.call(args, cnt);
 		return out;
 	}
@@ -259,10 +259,10 @@ var __lua = (function() {
 		return f;
 	}
 
-	function LuaReturnValues(v) {
+	function LuaArgList(v) {
 		this.values = v;
 	};
-	Object.defineProperty(LuaReturnValues.prototype, "__luaType",  {value: "returnValues",  enumerable: false});
+	Object.defineProperty(LuaArgList.prototype, "__luaType",  {value: "argList",  enumerable: false});
 
 	function lookupMetaTable(table, entry) {
 		if ( table instanceof LuaTable ) {
@@ -388,12 +388,12 @@ var __lua = (function() {
 	}
 
 	function oneValue(v) {
-		if ( v instanceof LuaReturnValues ) return v.values[0];
+		if ( v instanceof LuaArgList ) return v.values[0];
 		return v;
 	}
 
 	function makeMultiReturn() {
-		return new LuaReturnValues(expand(arguments, true));
+		return new LuaArgList(expand(arguments, true));
 	}
 
 	function expand(what, allowExpand) {
@@ -402,7 +402,7 @@ var __lua = (function() {
 		var out = [];
 		for ( var idx in what ) {
 			var v = what[idx];
-			if ( v instanceof LuaReturnValues ) {
+			if ( v instanceof LuaArgList ) {
 				for ( var i in v.values ) {
 					out.push(v.values[i]);
 					if ( idx < what.length - 1 || !allowExpand) break;
@@ -414,7 +414,7 @@ var __lua = (function() {
 		return out;
 	}
 
-	function expandReturnValues() {
+	function expandArgList() {
 		return expand(arguments, true);
 	}
 
@@ -461,7 +461,7 @@ var __lua = (function() {
 		concat: concat,
 		makeTable: makeTable,
 		makeFunction: makeFunction,
-		expandReturnValues: expandReturnValues,
+		expandArgList: expandArgList,
 		makeMultiReturn: makeMultiReturn,
 		count: count,
 		and: and,

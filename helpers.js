@@ -189,7 +189,7 @@
                         builder.functionExpression(null, names, builder.blockStatement(body)),
                         i("apply")
                     ),
-                    [{type: "Literal", value: null}, bhelper.luaOperatorA("expandReturnValues", explist)]
+                    [{type: "Literal", value: null}, bhelper.luaOperatorA("expandArgList", explist)]
                 ),
                 type: "ExpressionStatement"
             }
