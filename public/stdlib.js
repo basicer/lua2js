@@ -302,7 +302,7 @@ var __lua = (function() {
     }
 
     function lookupMetaTable(table, entry) {
-        if ( table instanceof Object ) {
+        if ( table && typeof table === "object" ) {
             if ( table.__metatable === undefined ) return null;
 
             var idx = rawget(table.__metatable, entry);
