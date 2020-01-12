@@ -163,7 +163,8 @@ LocalAssingment =
     { 
         var result = builder.variableDeclaration("let", []);
         if ( !opt('decorateLuaObjects', false) || ( left.length < 2 && right.length < 2 )) {
-            for ( var i = 0; i < left.length; ++i ) {
+            var i = 0;
+            for ( ; i < left.length; ++i ) {
                 if ( i !==  right.length - 1 || i ===  left.length - 1 ) {
                     if ( right[i] !== undefined && right[i].type !== "Identifier" && right[i].type !== "Literal" ) {
                         right[i] = bhelper.luaOperator("oneValue", right[i]);
@@ -188,7 +189,19 @@ LocalAssingment =
                     return [result, assign];
                 }
             }
-            return result;
+            var moreExpr = [];
+            for ( ; i < right.length; ++i ) {
+                if (right[i].type === "CallExpression") {
+                    moreExpr.push(right[i]);
+                }
+            }
+            return moreExpr.length ? [ result ].concat({
+                type: "ExpressionStatement",
+                expression: {
+                    type: "SequenceExpression",
+                    expressions: moreExpr
+                }
+            }) : result;
         } else {
             var assign = bhelper.bulkAssign(left, right);
             for ( var i = 0; i < left.length; ++i ) {
@@ -293,7 +306,7 @@ RepeatUntil =
     } }
 That = "that" { return { "type": "ThisExpression" }; }
 SimpleExpression = (
-    ResetExpression / FunctionExpression / CallExpression / That / Identifier / Literal /
+    RestExpression / FunctionExpression / CallExpression / That / Identifier / Literal /
     ObjectExpression / UnaryExpression / ParenExpr )
 Expression = AssignmentExpression / BinSimpleExpression
 BinSimpleExpression = 
@@ -340,7 +353,7 @@ ParenExpr = "(" ws? a:Expression ws? ")" {
     }
     return a;
 }
-ResetExpression = 
+RestExpression = 
     "..." {
         return wrapNode({type: "Identifier", name: "__lua$rest"});
     }
@@ -444,8 +457,34 @@ ObjectExpression =
                     }
                 }).concat(kvProps)
             } else {
-                result.type = "ArrayExpression";
-                result.elements = arrProps;
+                var lastProp, arrRes;
+                arrProps.forEach((cur, ind) => {
+                    if (cur.type === 'CallExpression' || cur.name === '__lua$rest') {
+                        if (ind === arrProps.length - 1) {
+                            lastProp = arrProps.splice(ind, 1);
+                            lastProp = cur.name !== '__lua$rest' ? lastProp : [{
+                                            type: "MemberExpression",
+                                            object: cur,
+                                            property: { type: "Identifier", name: "values" }
+                                        }];
+                        } else {
+                            arrProps[ind] = bhelper.luaOperator("oneValue", cur);
+                        }
+                    }
+                });
+                var arrRes = {
+                    type: "ArrayExpression",
+                    elements: arrProps
+                };
+                if (lastProp) {
+                    result = builder.callExpression({
+                        type: "MemberExpression",
+                        object: arrRes,
+                        property: { type: "Identifier", name: "concat" }
+                    }, lastProp);
+                } else {
+                    Object.assign(result, arrRes);
+                }
             }
             return result;
         }

@@ -211,9 +211,7 @@ var __lua = (function() {
 	}
 
 	function rest(args, cnt) {
-		var out = Object.create(LuaArgList.prototype, {});
-		out.values = Array.prototype.slice.call(args, cnt);
-		return out;
+		return new LuaArgList(Array.prototype.slice.call(args, cnt));
 	}
 
 	var id = 0;
@@ -263,25 +261,6 @@ var __lua = (function() {
 		this.values = v;
 	};
 	Object.defineProperty(LuaArgList.prototype, "__luaType",  {value: "argList",  enumerable: false});
-
-	function lookupMetaTable(table, entry) {
-		if ( table instanceof LuaTable ) {
-			if ( table.__metatable === undefined ) return null;
-
-			var idx = table.__metatable.hash[entry];
-			if ( idx === null || idx === undefined ) return null;
-
-			return idx;
-		}
-
-		return null;
-	}
-
-	function lookupMetaTableBin(a, b, entry) {
-		var mt = lookupMetaTable(a, entry);
-		if ( mt == null ) return lookupMetaTable(b, entry);
-		return mt;
-	}
 	
 	// rawget and rawset helper functions
 	function __ltRawSet (table, prop, value) {
@@ -311,6 +290,35 @@ var __lua = (function() {
 	function __objRawGet (table, prop) {
 		return table[prop];
 	};
+  
+  function rawget(table, prop) {
+		if ( table instanceof LuaTable ) {
+			return __ltRawGet(table, prop);
+		} else if ( isJSArray(table) ) {
+			return __arrRawGet(table, prop);
+		} else { // JS Object
+			return __objRawGet(table, prop);
+		}
+  }
+
+	function lookupMetaTable(table, entry) {
+		if ( table instanceof Object ) {
+			if ( table.__metatable === undefined ) return null;
+
+			var idx = rawget(table.__metatable, entry);
+			if ( idx === null || idx === undefined ) return null;
+
+			return idx;
+		}
+
+		return null;
+	}
+
+	function lookupMetaTableBin(a, b, entry) {
+		var mt = lookupMetaTable(a, entry);
+		if ( mt == null ) return lookupMetaTable(b, entry);
+		return mt;
+	}
 
 	function index(table, prop, helper) {
 		if ( table === null || table === undefined || typeof table !== "object" &&
@@ -456,6 +464,7 @@ var __lua = (function() {
 		gt: gt,
 		gte: gte,
 		eq: eq,
+    rawget: rawget,
 		index: index,
 		indexAssign: indexAssign,
 		concat: concat,
@@ -700,13 +709,7 @@ env.print = function print() { console.log.apply(console, arguments); };
 env.pcall = this.__lua.pcall;
 
 env.rawequals = function rawequals(a,b) { return a == b; };
-env.rawget = function rawget(table, prop) { 
-	if ( table instanceof LuaTable ) {
-		if ( typeof prop == "number" ) return table.numeric[prop - 1];
-		else return table.hash[prop];
-	}
-	return table[prop]; 
-};
+env.rawget = __lua.rawget;
 env.rawset = function rawset(table, prop, val) { 
 	if ( table instanceof LuaTable ) {
 		if ( typeof prop == "number" ) return table.numeric[prop - 1] = val;
