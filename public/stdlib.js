@@ -765,5 +765,7 @@ env.require = function require(what) {
 
 __lua.mark(env);
 __lua.env = env;
-for ( var idx in env ) this[idx] = env[idx];
 
+if (typeof window === "undefined") {
+    for ( var idx in env ) exports[idx] = env[idx];
+}
