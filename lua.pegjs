@@ -166,7 +166,7 @@ LocalAssingment =
             var i = 0;
             for ( ; i < left.length; ++i ) {
                 if ( i !==  right.length - 1 || i ===  left.length - 1 ) {
-                    if ( right[i] !== undefined && right[i].type !== "Identifier" && right[i].type !== "Literal" ) {
+                    if ( right[i] !== undefined && right[i].type === "CallExpression" ) {
                         right[i] = bhelper.luaOperator("oneValue", right[i]);
                     }
                     result.declarations.push({
@@ -502,7 +502,7 @@ field =
     }/
     ws? "[" ws? k:Expression ws? "]" ws? "=" ws? v:BinSimpleExpression
     {
-        return { key: k, value: v }; 
+        return { key: k, value: v, computed: true }; 
     }
 FunctionDeclaration =
     start:function ws? name:funcname ws? f:funcbody ws? end:("end") & { return eUntermIfEmpty(end, "function", "end", start); }
