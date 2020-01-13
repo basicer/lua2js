@@ -122,7 +122,7 @@ __lua.env.print = __lua.makeFunction(function print() {
   console.log.apply(console, args); 
 });
 
-print = __lua.env.print;
+_G = __lua.env;
 
 var myAppModule = angular.module('MyApp', ['ui.ace']);
 function update($scope) {
@@ -130,7 +130,7 @@ function update($scope) {
     $scope.error = "";
     window.localStorage["code"] = $scope.code;
     var c = parser.parse($scope.code, $scope.opts);
-    $scope.code2 = "(function()\n" + escodegen.generate(c) + ")();";
+    $scope.code2 = "(function() " + escodegen.generate(c) + ")();";
   } catch ( e ) {
     if (e.location) {
       var errloc = e.location.start;
@@ -158,9 +158,11 @@ function main($scope) {
   };
   $scope.xeval = function() {
     update($scope);
-    try { 
-      stdout = "Output:\n"
-      eval($scope.code2);
+    try {
+      stdout = "Output:\n";
+      var gKeys = Object.keys(_G);
+      eval($scope.code2.replace(/^\(function\(\)/, '(function(' + gKeys.join(',') + ')')
+            .replace(/\(\);$/, '(' + gKeys.map(x => '_G.' + x).join(',') + ');'));
     } catch ( e ) {
       stdout = "Error:\n" + e;
     }

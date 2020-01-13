@@ -727,7 +727,9 @@ env.something = function something(table) {
     }
     return __lua.makeMultiReturn.apply(__lua, array);
 };
-env.math = Math;
+env.math = Object.assign(Math, {
+    randomseed: () => {}
+});
 
 env.setmetatable = function setmetatable(target, meta) {
     Object.defineProperty(target, "__metatable", {value: meta, enumerable: false, configurable: true });
@@ -758,7 +760,7 @@ env.bit32 = {
 env.require = function require(what) {
     if ( what == "bit" ) return env.bit32;
     if ( what == "bit32" ) return env.bit32;
-    throw "Module " + waht + " not found";
+    throw "Module " + what + " not found";
 };
 
 __lua.mark(env);
