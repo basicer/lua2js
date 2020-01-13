@@ -90,9 +90,10 @@ var __lua = (function() {
         var mtf = lookupMetaTableBin(a, b, "__mod");
         if ( mtf !== null ) return mtf(a,b);
 
-        var bnum = numberForArith(b)
-        var jsmod = numberForArith(a) % bnum
-        return jsmod < 0 ? jsmod + bnum : jsmod;
+        var anum = numberForArith(a);
+        var bnum = numberForArith(b);
+        var jsmod = anum % bnum;
+        return (jsmod == 0 || (anum > 0) == (bnum > 0)) ? jsmod : jsmod + bnum;
     }
 
     function pow(a,b) { 
@@ -109,7 +110,8 @@ var __lua = (function() {
 
         var mtf = lookupMetaTableBin(a, b, "__concat");
         if ( mtf !== null ) return mtf(a,b);
-        if ( a === null || a === undefined || b === null || b === undefined ) throw "attempt to concatenate a nil value";
+        if ( a === null || a === undefined || b === null || b === undefined )
+            throw "attempt to concatenate a nil value";
 
         return  makeString(a) + makeString(b); 
     }
