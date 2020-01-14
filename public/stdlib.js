@@ -227,6 +227,10 @@ var __lua = (function() {
     Object.defineProperty(LuaTable.prototype, "toString",  {value: function() {
         return makeString(this);
     },  enumerable: false});
+    
+    function makePattern(pat) {
+        return pat.replace(/%(.)/g, '\\$1');
+    }
 
     function makeTable(t, allowExpand /*, numeric ... */) {
         var out = new LuaTable();
@@ -522,13 +526,24 @@ env.string = {
 
     },
     dump: null,
-    find: null,
+    find: function(s, pat, init, plain) {
+        if (plain) {
+            return s.indexOf(pat, init - 1) + 1;
+        } else {
+            if (init) {
+                s = s.substring(init - 1);
+                return s.search(pat) + init;
+            } else {
+                return s.search(pat) + 1;
+            }
+        }
+    },
     gmatch: null,
     gsub: null,
     len: function len(s) { return ("" + s).length; },
     lower: function lower(s) { return ("" + s).toLowerCase(); },
     match: null,
-    rep: function (s, n, sep) {
+    rep: function(s, n, sep) {
         if (!n || n < 0) return "";
         if (!isNaN(s)) s = "" + s;
         if (sep) {
@@ -747,7 +762,15 @@ env.something = function something(table) {
     return __lua.makeMultiReturn.apply(__lua, array);
 };
 env.math = Object.assign(Math, {
-    randomseed: () => {}
+    huge: Infinity,
+    randomseed: () => {},
+    ldexp: function (mantissa, exponent) {
+        var steps = Math.min(3, Math.ceil(Math.abs(exponent) / 1023));
+        var result = mantissa;
+        for (var i = 0; i < steps; i++)
+            result *= Math.pow(2, Math.floor((exponent + i) / steps));
+        return result;
+    }
 });
 
 env.setmetatable = function setmetatable(target, meta) {
