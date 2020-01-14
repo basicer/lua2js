@@ -496,6 +496,16 @@ var __lua = (function() {
 
 this.__lua = __lua;
 
+env.tonumber = function (s, base) {
+    if (base) return parseInt(s, base);
+    if (isNaN(s)) {
+        return parseFloat(s);
+    } else {
+        return s;
+    }
+}
+env.tostring = __lua.makeString;
+
 env.string = {
     byte: function byte(s,i,j) {
         var chars = env.string.sub(s,i,j);
@@ -518,6 +528,15 @@ env.string = {
     len: function len(s) { return ("" + s).length; },
     lower: function lower(s) { return ("" + s).toLowerCase(); },
     match: null,
+    rep: function (s, n, sep) {
+        if (!n || n < 0) return "";
+        if (!isNaN(s)) s = "" + s;
+        if (sep) {
+            return s + (sep + s).repeat(n - 1);
+        } else {
+            return s.repeat(n);
+        }
+    },
     reverse: function(s) {
         return ("" + s).split("").reverse().join("");
     },
@@ -594,8 +613,6 @@ env.table = {
 };
 
 env.unpack = env.table.unpack;
-env.tonumber = parseInt;
-env.tostring = __lua.makeString;
 
 env.os = {
     clock: null,
