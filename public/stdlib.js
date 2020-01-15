@@ -227,10 +227,6 @@ var __lua = (function() {
     Object.defineProperty(LuaTable.prototype, "toString",  {value: function() {
         return makeString(this);
     },  enumerable: false});
-    
-    function makePattern(pat) {
-        return pat.replace(/%(.)/g, '\\$1');
-    }
 
     function makeTable(t, allowExpand /*, numeric ... */) {
         var out = new LuaTable();
@@ -332,7 +328,9 @@ var __lua = (function() {
             if ( helper == undefined ) {
                 throw "attempt to index a " + type(table) + " value";
             } else {
-                throw "attempt to index '" + helper + "' (a " + type(table) + " value)";
+                var tt = type(table);
+                if (tt === "string") return env.string[prop];
+                throw "attempt to index '" + helper + "' (a " + tt + " value)";
             }
         }
         
@@ -457,42 +455,10 @@ var __lua = (function() {
     }
 
     return {
-        add: add,
-        sub: sub,
-        mul: mul,
-        div: div,
-        intdiv: intdiv,
-        mod: mod,
-        call: call,
-        lte: lte,
-        lt: lt,
-        ne: ne,
-        gt: gt,
-        gte: gte,
-        eq: eq,
-        rawget: rawget,
-        index: index,
-        indexAssign: indexAssign,
-        concat: concat,
-        makeTable: makeTable,
-        makeFunction: makeFunction,
-        expandArgList: expandArgList,
-        makeMultiReturn: makeMultiReturn,
-        count: count,
-        and: and,
-        or: or,
-        expand: expand,
-        rest: rest,
-        pcall: pcall,
-        type: type,
-        pow: pow,
-        isTable: isTable,
-        mark: mark,
-        forcomp: forcomp,
-        makeString: makeString,
-        oneValue: oneValue,
-        lookupMetaTable: lookupMetaTable,
-        isJSArray: isJSArray
+        add, sub, mul, div, intdiv, mod, call, lte, lt, ne, gt, gte, eq, rawget, index,
+        indexAssign, concat, makeTable, makeFunction, expandArgList, makeMultiReturn,
+        count, and, or, expand, rest, pcall, type, pow, isTable, mark, forcomp,
+        makeString, oneValue, lookupMetaTable, isJSArray
     };
 
 })();
@@ -510,61 +476,120 @@ env.tonumber = function (s, base) {
 }
 env.tostring = __lua.makeString;
 
-env.string = {
-    byte: function byte(s,i,j) {
-        var chars = env.string.sub(s,i,j);
+env.string = (function() {
+    /**
+     * string helpers
+     */
+    function checkString(s, num) {
+        var type = typeof(s);
+        if (type === "string") return s;
+        if (type === 'number') return "" + s;
+        throw(`bad argument #${num} to '${checkString.caller.name}' ` +
+            `(string expected, got ${__lua.type(s)})`);
+    }
+    
+    function makePattern(pat) {
+        var classPat = /\[.*?[^%]\]/g;
+        var inClass = [];
+        for (var match of pat.matchAll(classPat)) {
+            for (var k = match.index; k < match.index + match[0].length; k++) {
+                inClass[k] = 1;
+            }
+        }
+        pat = [...pat].map(x => (x === '-' ? '*?' : x)).join('');
+        return pat.replace(/%(.)/g, '\\$1');
+    }
+    
+    function uncheckedSub(s, i, j) {
+        if ( i === undefined || i === null ) i = 1;
+        if ( j === undefined || j === null ) j = s.length;
+        if ( i < 0 ) i += (s.length+1);
+        if ( j < 0 ) j += (s.length+1);
+        
+        return s.substring(i-1,j);
+    }
+
+    /**
+     * methods
+     */
+    function byte(s, i, j) {
+        s = checkString(s, 1);
+        var chars = sub(s, i, j);
         var out = [];
         for ( var i = 0; i < chars.length; ++i ) out[i] = chars.charCodeAt(i);
         return __lua.makeMultiReturn.apply(__lua, out);
-    },
-    char: function char(/* arguments */) {
+    }
+    
+    function char(/* arguments */) {
         var out = "";
         for ( var i = 0; i < arguments.length; ++i ) {
             out += String.fromCharCode(arguments[i]|0); 
         }
         return out;
-
-    },
-    dump: null,
-    find: function(s, pat, init, plain) {
+    }
+    
+    function dump() {}
+    
+    function find(s, pat, init, plain) {
+        s = checkString(s, 1);
+        init = init && (init >= 0 ? init : init + s.length + 1);
         if (plain) {
-            return s.indexOf(pat, init - 1) + 1;
+            var start = s.indexOf(pat, init - 1) + 1;
+            return start ? __lua.makeMultiReturn(start, start + pat.length) : null;
         } else {
+            pat = new RegExp(makePattern(pat));
+            var res;
             if (init) {
-                s = s.substring(init - 1);
-                return s.search(pat) + init;
+                s = uncheckedSub(s, init);
+                res = pat.exec(s);
+                return res && __lua.makeMultiReturn(res.index + init,
+                        res.index + init + res[0].length - 1);
             } else {
-                return s.search(pat) + 1;
+                res = pat.exec(s);
+                return res && __lua.makeMultiReturn(res.index + 1,
+                        res.index + res[0].length);
             }
         }
-    },
-    gmatch: null,
-    gsub: null,
-    len: function len(s) { return ("" + s).length; },
-    lower: function lower(s) { return ("" + s).toLowerCase(); },
-    match: null,
-    rep: function(s, n, sep) {
+    }
+    
+    function match() {}
+    function gmatch() {}
+    function gsub() {}
+    
+    function len(s) {
+        s = checkString(s, 1);
+        return ("" + s).length;
+    }
+    function lower(s) {
+        s = checkString(s, 1);
+        return ("" + s).toLowerCase();
+    }
+    function upper(s) {
+        s = checkString(s, 1);
+        return ("" + s).toUpperCase();
+    }
+    
+    function rep(s, n, sep) {
+        s = checkString(s, 1);
         if (!n || n < 0) return "";
-        if (!isNaN(s)) s = "" + s;
         if (sep) {
             return s + (sep + s).repeat(n - 1);
         } else {
             return s.repeat(n);
         }
-    },
-    reverse: function(s) {
+    }
+    
+    function reverse(s) {
+        s = checkString(s, 1);
         return ("" + s).split("").reverse().join("");
-    },
-    sub: function(s, i, j) {
-        if ( i === undefined || i === null ) i = 1;
-        if ( j === undefined || j === null ) j = s.length;
-        if ( i < 0 ) i += (s.length+1);
-        if ( j < 0 ) j += (s.length+1);
-
-        return __lua.makeString(s).substring(i-1,j);
-    },
-    upper: function lower(s) { return ("" + s).toUpperCase(); },
-    format: function format(format, etc) {
+    }
+    
+    function sub(s, i, j) {
+        s = checkString(s, 1);
+        return uncheckedSub(s, i, j);
+    }
+    
+    function format(format, etc) {
         var arg = arguments;
         var i = 1;
         return format.replace(/%([0-9.]+)?([%sfdgi])/g, function (m, w, t) {
@@ -583,8 +608,15 @@ env.string = {
             return r;
         });
     }
+    
+    return {
+        byte, char, dump, find, gmatch, gsub, len, lower, match, rep, reverse,
+        sub, upper, format
+    };
+})();
 
-};
+
+
 
 env.table = {
     concat: null,
