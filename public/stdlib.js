@@ -551,7 +551,15 @@ env.string = (function() {
         }
     }
     
-    function match() {}
+    function match(s, pat, init) {
+        s = checkString(s, 1);
+        init = init && (init >= 0 ? init : init + s.length + 1);
+        s = uncheckedSub(s, init);
+        pat = new RegExp(makePattern(pat));
+        var res = pat.exec(s);
+        return res && (res[1] !== undefined ? __lua.makeMultiReturn.apply(__lua, res.slice(1)) : res[0]);
+    }
+
     function gmatch() {}
     function gsub() {}
     
