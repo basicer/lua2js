@@ -463,7 +463,6 @@ var __lua = (function() {
 
 })();
 
-
 this.__lua = __lua;
 
 env.tonumber = function (s, base) {
@@ -619,7 +618,14 @@ env.string = (function() {
 
 
 env.table = {
-    concat: null,
+    concat: function(table, sep, i, j) {
+        sep = sep || "";
+        if ( __lua.isTable(table) ) {
+            return table.numeric.slice(i-1, j).join(sep);
+        } else if ( __lua.isJSArray(table) ) {
+            return table.slice(i-1, j).join(sep);
+        }
+    },
     insert: null,
     pack: function(/* arguments */) {
         var obj = {}
@@ -640,7 +646,7 @@ env.table = {
             table.sort(tcomp);
         }
     },
-    unpack: function(table,i,j) {
+    unpack: function(table, i, j) {
         if ( i === undefined || i === null ) i = 1;
         if ( j === undefined || j === null ) j = __lua.count(table);
 
@@ -649,10 +655,14 @@ env.table = {
             for ( var a = i; a <= j; ++a ) {
                 arr.push(table.numeric[a]);
             }
+        } else if ( __lua.isJSArray(table) ) {
+            for ( var a = i-1; a < j; ++a ) {
+                arr.push(table[a]);
+            }
         } else {
             for ( var a = i; a <= j; ++a ) {
                 arr.push(table[a]);
-            }			
+            }
         }
 
         return __lua.makeMultiReturn.apply(__lua, arr);
