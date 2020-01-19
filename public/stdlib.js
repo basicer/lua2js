@@ -495,7 +495,7 @@ env.string = (function() {
                 inClass[k] = 1;
             }
         }
-        pat = [...pat].map(x => (x === '-' ? '*?' : x)).join('');
+        pat = [...pat].map((x, i) => (x === '-' && !inClass[i] ? '*?' : x)).join('');
         return pat.replace(/%(.)/g, '\\$1');
     }
     
