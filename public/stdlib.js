@@ -591,15 +591,15 @@ env.string = (function() {
             } else if (type === 'table') {
                 return s.replace(pat, function(m, p1) {
                     if (p1) {
-                        return __lua.index(repl, p1, 'repl');;
+                        return __lua.index(repl, p1, 'repl');
                     } else {
-                        return __lua.index(repl, m, 'repl');;
+                        return __lua.index(repl, m, 'repl');
                     }
                 });
             } else if (type === 'function') {
                 return s.replace(pat, function(m, ...pArgs) {
                     if (pArgs[0]) {
-                        return __lua.call(0, repl, this, 'gsub', new LuaArgList(pArgs));
+                        return __lua.call(0, repl, this, 'gsub', pArgs.slice(0, -2));
                     } else {
                         return repl(m);
                     }
