@@ -496,7 +496,25 @@ env.string = (function() {
             }
         }
         pat = [...pat].map((x, i) => (x === '-' && !inClass[i] ? '*?' : x)).join('');
-        return pat.replace(/%(.)/g, '\\$1');
+        return pat.replace(/%(.)|\^|\$/g, function(m, p1, k) {
+            if (p1 === 'a') {
+                return inClass[k+1] ? 'A-Za-z' : '[A-Za-z]';
+            } else {
+                return '\\' + p1;
+            }
+        });
+    }
+    
+    function makeReplace(newStr) {
+        return newStr.replace(/%(.)/g, function(m, p1) {
+            if (isNaN(p1)) {
+                return p1;
+            } else if (p1 === '0') {
+                return '$&';
+            } else {
+                return '$' + p1;
+            }
+        });
     }
     
     function uncheckedSub(s, i, j) {
@@ -561,7 +579,34 @@ env.string = (function() {
     }
 
     function gmatch() {}
-    function gsub() {}
+    function gsub(s, pat, repl, n) {
+        s = checkString(s, 1);
+        pat = new RegExp(makePattern(pat), 'g');
+        var type = __lua.type(repl);
+        if (n) {
+            return s; // TODO
+        } else {
+            if (type === 'string') {
+                return s.replace(pat, makeReplace(repl));
+            } else if (type === 'table') {
+                return s.replace(pat, function(m, p1) {
+                    if (p1) {
+                        return __lua.index(repl, p1, 'repl');;
+                    } else {
+                        return __lua.index(repl, m, 'repl');;
+                    }
+                });
+            } else if (type === 'function') {
+                return s.replace(pat, function(m, ...pArgs) {
+                    if (pArgs[0]) {
+                        return __lua.call(0, repl, this, 'gsub', new LuaArgList(pArgs));
+                    } else {
+                        return repl(m);
+                    }
+                });
+            }
+        }
+    }
     
     function len(s) {
         s = checkString(s, 1);

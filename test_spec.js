@@ -175,25 +175,25 @@ describe("Simple Tests", function() {
 
 function testDirectory(dir) {
     return function() {
-    fs.readdirSync(dir).forEach(function(f) {
-        it(dir + '/' + f, function(done) {
-            var code = fs.readFileSync(dir + '/' + f).toString();
-            //console.log("Start " + f);
-            var v = leval(code);
-            if ( typeof(v) != "function" ) throw v;
+        fs.readdirSync(dir).forEach(function(f) {
+            it(dir + '/' + f, function(done) {
+                var code = fs.readFileSync(dir + '/' + f).toString();
+                //console.log("Start " + f);
+                var v = leval(code);
+                if ( typeof(v) != "function" ) throw v;
 
-            (function(env) {
-                var a = vm.runInNewContext(v(), env, "vm");     
-                exec('lua ' + dir + '/' + f, function(err, stdout, stderr) {
-                    if ( stderr !== "" ) expect(false).toBe(true);
-                    expect(env.getStdOut()).toEqual(stdout.replace(/\r\n/g,"\n"));
-                    done();
-                });
+                (function(env) {
+                    var a = vm.runInNewContext(v(), env, "vm");     
+                    exec('lua ' + dir + '/' + f, function(err, stdout, stderr) {
+                        if ( stderr !== "" ) expect(false).toBe(true);
+                        expect(env.getStdOut()).toEqual(stdout.replace(/\r\n/g,"\n"));
+                        done();
+                    });
 
-            })(makenv());
-            //console.log("End " + f);
+                })(makenv());
+                //console.log("End " + f);
+            });
         });
-    });
     };
 }
 
