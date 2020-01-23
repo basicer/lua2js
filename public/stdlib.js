@@ -1,4 +1,10 @@
 var env = {};
+
+function LuaArgList(v) {
+    this.values = v;
+};
+Object.defineProperty(LuaArgList.prototype, "__luaType",  {value: "argList",  enumerable: false});
+
 var __lua = (function() {
 
     // Yoinked from underscore.
@@ -258,11 +264,6 @@ var __lua = (function() {
         f.__luaType = "function";
         return f;
     }
-
-    function LuaArgList(v) {
-        this.values = v;
-    };
-    Object.defineProperty(LuaArgList.prototype, "__luaType",  {value: "argList",  enumerable: false});
     
     // rawget and rawset helper functions
     function __ltRawSet (table, prop, value) {
@@ -599,7 +600,7 @@ env.string = (function() {
             } else if (type === 'function') {
                 return s.replace(pat, function(m, ...pArgs) {
                     if (pArgs[0]) {
-                        return __lua.call(0, repl, this, 'gsub', pArgs.slice(0, -2));
+                        return __lua.call(0, repl, this, 'repl', new LuaArgList(pArgs.slice(0, -2)));
                     } else {
                         return repl(m);
                     }
@@ -609,7 +610,7 @@ env.string = (function() {
     }
     
     function len(s) {
-        s = checkString(s, 1);
+        s = checkString(__lua.oneValue(s), 1);
         return ("" + s).length;
     }
     function lower(s) {
