@@ -442,7 +442,10 @@ ObjectExpression =
                 result = { type:"Literal", value: null };
             }
             return bhelper.luaOperator.apply(bhelper, ["makeTable", result,
-                    { type: "Literal", value: last }].concat(arrProps)); 
+                    { type: "Literal", value: last }, {
+                        type: "ArrayExpression",
+                        elements: arrProps
+                    }]); 
         } else {
             result = {
                 loc: location()

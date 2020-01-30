@@ -1,5 +1,19 @@
 var env = {};
 
+Object.defineProperty(Array.prototype, 'merge', {
+    configurable: true,
+    value: function(arr2) {
+        var arr1Length = this.length;
+        var arr2Length = arr2.length;
+        // Pre allocate size
+        this.length = this.length + arr2Length;
+        // Add arr2 items to arr1
+        for(var i = 0; i < arr2Length; i++){
+            this[arr1Length + i] = arr2[i];
+        }
+    }
+});
+
 function LuaArgList(v) {
     this.values = v;
 };
@@ -178,29 +192,65 @@ var __lua = (function() {
 
     function and(a,b) { return a && b; }
     function or(a,b) { return a || b; }
+    
+    // standard expand
+    function expandA(what) {
+        var out = [];
+        var len = what.length;
+        for ( var idx = 0; idx < len; idx++ ) {
+            var v = what[idx];
+            if ( v instanceof LuaArgList ) {
+                if ( idx < len - 1 ) {
+                    out.push(v.values[0]);
+                } else {
+                    out.merge(v.values);
+                }
+            } else {
+                out.push(v);
+            }
+        }
+        return out;
+    }
+    
+    // don't expand last arglist
+    function expandB(what) {
+        var out = [];
+        for ( var v of what ) {
+            if ( v instanceof LuaArgList ) {
+                out.push(v.values[0]);
+            } else {
+                out.push(v);
+            }
+        }
+        return out;
+    }
 
-    function call(flags, what, that, helper /*, args... */ ) {
+    function expandArgList() {
+        return expandA(arguments);
+    }
+
+    function call(flags, what, that, helper, ...rest ) {
         var injectSelf = !!(flags & 1); 
         var detectLua = !!(flags & 2); 
 
-        if ( what === null || what === undefined ) {
+        if ( !what ) {
             if ( helper === undefined ) throw "attempt to call a " + type(what) + " value";
             else throw "attempt to call '" + helper + "' (a " + type(what) + " value)"; 
         }
 
-        var args = expand(Array.prototype.slice.call(arguments, 4), true);
+        var args = expandA(rest);
 
         var doInject = true;
 
         if ( detectLua ) {
-            doInject = what.__luaType == "function";
+            doInject = what.__luaType === "function";
         }
 
         if ( injectSelf && doInject ) {
             args.unshift(that);
         }
 
-        if ( detectLua && what.__luaType != "function" ) {
+        if ( detectLua && !doInject ) {
             var args2 = [];
             for ( var i = 0; i < args.length; ++i ) {
                 var a = args[i];
@@ -234,26 +284,22 @@ var __lua = (function() {
         return makeString(this);
     },  enumerable: false});
 
-    function makeTable(t, allowExpand /*, numeric ... */) {
+    function makeTable(t, allowExpand, numeric) {
         var out = new LuaTable();
 
-        out.numeric = expand(Array.prototype.slice.call(arguments, 2), allowExpand);
-        if ( !t ) return out;
-
-        if ( isJSArray(t) ) {
-            for ( var i = 0; i < t.length; ++i ) {
-                var pair = t[i];
-                var key = pair[0];
-                var val = pair[1];
-                if ( typeof key == "number" ) {
-                    out.numeric[key - 1] = val;
-                } else {
-                    out.hash[key] = val;
-                }
-            }
+        if ( allowExpand ) {
+            out.numeric = expandA(numeric);
         } else {
-            for ( var k in t ) {
-                out.hash[k] = t[k];
+            out.numeric = expandB(numeric);
+        }
+        if ( !t ) return out;
+        for ( var pair of t ) {
+            var key = pair[0];
+            var val = pair[1];
+            if ( typeof key == "number" ) {
+                out.numeric[key - 1] = val;
+            } else {
+                out.hash[key] = val;
             }
         }
 
@@ -406,34 +452,12 @@ var __lua = (function() {
     }
 
     function makeMultiReturn() {
-        return new LuaArgList(expand(arguments, true));
-    }
-
-    function expand(what, allowExpand) {
-        if ( allowExpand === undefined ) allowExpand = false;
-
-        var out = [];
-        for ( var idx in what ) {
-            var v = what[idx];
-            if ( v instanceof LuaArgList ) {
-                for ( var i in v.values ) {
-                    out.push(v.values[i]);
-                    if ( idx < what.length - 1 || !allowExpand) break;
-                }
-            } else {
-                out.push(v);
-            }
-        }
-        return out;
-    }
-
-    function expandArgList() {
-        return expand(arguments, true);
+        return new LuaArgList(expandA(arguments));
     }
 
     function pcall(what /*, args... */ ) {
         try {
-            var result = expand([what.apply(this, Array.prototype.slice.call(arguments, 1))], true);
+            var result = expandA([ what.apply(this, Array.prototype.slice.call(arguments, 1)) ]);
             result.unshift(true);
             return makeMultiReturn.apply(__lua, result);
         } catch ( e ) {
@@ -458,8 +482,8 @@ var __lua = (function() {
     return {
         add, sub, mul, div, intdiv, mod, call, lte, lt, ne, gt, gte, eq, rawget, index,
         indexAssign, concat, makeTable, makeFunction, expandArgList, makeMultiReturn,
-        count, and, or, expand, rest, pcall, type, pow, isTable, mark, forcomp,
-        makeString, oneValue, lookupMetaTable, isJSArray
+        count, and, or, rest, pcall, type, pow, isTable, mark, forcomp, makeString,
+        oneValue, lookupMetaTable, isJSArray
     };
 
 })();
@@ -682,11 +706,7 @@ env.table = {
     },
     insert: null,
     pack: function(/* arguments */) {
-        var obj = {}
-        for ( var i = 0; i < arguments.length; ++i) {
-            obj[("" + (i + 1))] = arguments[i];
-        }
-        return __lua.makeTable(obj);
+        return __lua.makeTable(null, false, Array.from(arguments));
     },
     remove: null,
     sort: function(table, comp) {
