@@ -726,7 +726,7 @@ env.table = {
 
         var arr = [];
         if ( __lua.isTable(table) ) {
-            for ( var a = i; a <= j; ++a ) {
+            for ( var a = i-1; a < j; ++a ) {
                 arr.push(table.numeric[a]);
             }
         } else if ( __lua.isJSArray(table) ) {
@@ -760,6 +760,7 @@ env.os = {
 env.io = {
     write: function() { env.print(...arguments); }
 };
+env.print = function print() { console.log.apply(console, arguments); };
 
 env.error = function error(s) { throw s; };
 
@@ -855,7 +856,6 @@ env.next = function next(table, cur) {
     }
 };
 
-env.print = function print() { console.log.apply(console, arguments); };
 env.pcall = this.__lua.pcall;
 
 env.rawequals = function rawequals(a,b) { return a == b; };
@@ -879,7 +879,13 @@ env.something = function something(table) {
 };
 env.math = Object.assign(Math, {
     huge: Infinity,
+    pi: Math.PI,
     randomseed: () => {},
+    fmod: function (value, modulo) { return value % modulo; },
+    modf: function (value) {
+        var ip = Math.trunc(value);
+        return __lua.makeMultiReturn(ip, value - ip);
+    },
     ldexp: function (mantissa, exponent) {
         var steps = Math.min(3, Math.ceil(Math.abs(exponent) / 1023));
         var result = mantissa;
