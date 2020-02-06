@@ -708,11 +708,33 @@ env.table = {
             return table.slice(i-1, j).join(sep);
         }
     },
-    insert: null,
+    insert: function(table, pos, value) {
+        if (value) {
+            if ( __lua.isTable(table) ) {
+                return table.numeric[pos-1] = value;
+            } else if ( __lua.isJSArray(table) ) {
+                return table[pos-1] = value;
+            }
+        } else {
+            value = pos;
+            if ( __lua.isTable(table) ) {
+                return table.numeric.push(value);
+            } else if ( __lua.isJSArray(table) ) {
+                return table.push(value);
+            }
+        }
+    },
     pack: function(/* arguments */) {
         return __lua.makeTable(null, false, Array.from(arguments));
     },
-    remove: null,
+    remove: function(table, pos) {
+        pos = pos ? pos-1 : -1;
+        if ( __lua.isTable(table) ) {
+            table.numeric.splice(pos, 1);
+        } else if ( __lua.isJSArray(table) ) {
+            table.splice(pos, 1);
+        }
+    },
     sort: function(table, comp) {
         var tcomp;
         if (comp) {
