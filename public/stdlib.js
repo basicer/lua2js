@@ -233,39 +233,43 @@ var __lua = (function() {
         var injectSelf = !!(flags & 1); 
         var detectLua = !!(flags & 2); 
 
-        if ( !what ) {
+        var whatType = typeof what;
+        if ( !what  || (whatType !== 'function' && whatType !== 'object') ) {
             if ( helper === undefined ) throw "attempt to call a " + type(what) + " value";
             else throw "attempt to call '" + helper + "' (a " + type(what) + " value)"; 
         }
-
-        var args = expandA(rest);
-
-        var doInject = true;
-
-        if ( detectLua ) {
-            doInject = what.__luaType === "function";
-        }
-
-        if ( injectSelf && doInject ) {
-            args.unshift(that);
-        }
-
-        if ( detectLua && !doInject ) {
-            var args2 = [];
-            for ( var i = 0; i < args.length; ++i ) {
-                var a = args[i];
-                if ( a instanceof LuaTable ) {
-                    if ( a.numeric.length == 0 ) args2[i] = a.hash;
-                    else if ( Object.keys(a.hash).length == 0 ) args2[i] = a.numeric;
-                    else args2[i] = a;
-                } else {
-                    args2[i] = a;
-                }
+        
+        if (whatType === 'function') {
+            var isLuaFunction = true;
+            if ( detectLua ) {
+                isLuaFunction = what.__luaType === "function";
             }
-            args = args2;
-        }
 
-        return what.apply(that, args);
+            var args = expandA(rest);
+            if ( injectSelf && isLuaFunction ) {
+                args.unshift(that);
+            }
+
+            if ( detectLua && !isLuaFunction ) {
+                var args2 = [];
+                for ( var i = 0; i < args.length; ++i ) {
+                    var a = args[i];
+                    if ( a instanceof LuaTable ) {
+                        if ( a.numeric.length == 0 ) args2[i] = a.hash;
+                        else if ( Object.keys(a.hash).length == 0 ) args2[i] = a.numeric;
+                        else args2[i] = a;
+                    } else {
+                        args2[i] = a;
+                    }
+                }
+                args = args2;
+            }
+            return what.apply(that, args);
+        } else {
+            var mtf = lookupMetaTable(what, "__call");
+            if ( mtf !== null ) return mtf.apply(that, [ what ].concat(expandA(rest)));
+            throw "attempt to call '" + helper + "' (a " + type(what) + " value)"; 
+        }
     }
 
     function rest(args, cnt) {
@@ -787,7 +791,7 @@ env.pairs = function pairs(table) {
 
     var list = [];
     if ( __lua.isTable(table) ) {
-        for ( var i = 0; i < table.numeric.length; ++i ) list.push([i + 1, i, table.numeric]);
+        for ( var i = 0; i < table.numeric.length; ++i ) table.numeric[i] && list.push([i + 1, i, table.numeric]);
         for ( var idx in table.hash ) list.push([idx, idx, table.hash]);
     } else if ( __lua.isJSArray(table) ) {
         for ( var i in table ) {
