@@ -161,14 +161,13 @@ function main($scope) {
     update($scope);
   };
   $scope.xeval = function() {
-    update($scope);
     try {
-      stdout = "Output:\n";
+      stdout = 'Output:\n';
       var gKeys = Object.keys(_G);
       eval($scope.code2.replace(/^\(function\(\)/, '(function(' + gKeys.join(',') + ')')
             .replace(/\(\);$/, '(' + gKeys.map(x => '_G.' + x).join(',') + ');'));
     } catch ( e ) {
-      stdout = "Error:\n" + e;
+      stdout = 'Error:\n' + e + '\n' + e.stack;
     }
     $scope.error = stdout;
   }

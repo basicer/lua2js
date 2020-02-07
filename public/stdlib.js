@@ -903,10 +903,9 @@ env.something = function something(table) {
     }
     return __lua.makeMultiReturn.apply(__lua, array);
 };
-env.math = Object.assign(Math, {
+env.math = Object.assign({}, Math, {
     huge: Infinity,
     pi: Math.PI,
-    randomseed: () => {},
     fmod: function (value, modulo) { return value % modulo; },
     modf: function (value) {
         var ip = Math.trunc(value);
@@ -918,7 +917,19 @@ env.math = Object.assign(Math, {
         for (var i = 0; i < steps; i++)
             result *= Math.pow(2, Math.floor((exponent + i) / steps));
         return result;
-    }
+    },
+    random: function(m, n) {
+        if (m) {
+            if (n) {
+                return m + Math.floor(Math.random() * (n - m + 1));
+            } else {
+                return Math.floor(Math.random() * m);
+            }
+        } else {
+            return Math.random();
+        }
+    },
+    randomseed: () => {}
 });
 
 env.setmetatable = function setmetatable(target, meta) {
