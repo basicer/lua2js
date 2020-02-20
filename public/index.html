@@ -13,27 +13,22 @@
   <title>Lua 2 JS</title>
 
   <!-- Bootstrap core CSS -->
-  <link href="http://bootswatch.com/darkly/bootstrap.css" rel="stylesheet">
+  <link href="https://bootswatch.com/3/darkly/bootstrap.css" rel="stylesheet">
 
-  <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
-    <!--[if lt IE 9]>
-      <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
-      <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
-      <![endif]-->
-      <script src="//code.jquery.com/jquery-1.11.1.min.js"></script>
-      <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.16/angular.min.js"></script>
-      <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.1.3/ace.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/jquery@3.4.1/dist/jquery.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/angular@1.2.32/angular.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/ace-builds@1.4.8/src-noconflict/ace.js"></script>
       <script src="ui-ace.js"></script>
       <script src="piler.js"></script>
       <script src="stdlib.js"></script>
-      <script src="https://estools.github.io/escodegen/escodegen.browser.js"></script>
-      <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.1.3/mode-lua.js"></script>
-      <script src="//cdnjs.cloudflare.com/ajax/libs/ace/1.1.3/mode-javascript.js"></script>
-      <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+      <script src="escodegen.browser.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/ace-builds@1.4.8/src-noconflict/mode-lua.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/ace-builds@1.4.8/src-noconflict/mode-javascript.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/js/bootstrap.min.js"></script>
       <style>
       .ace_editor { height: 500px; background-color: black; }
       textarea { width:100%; height: 100px; font-size: 14pt }
-      .x { padding: 10px; color: white !important; }
+      .x { padding: 10px; color: white !important; overflow: auto; white-space: pre-wrap; }
       .footer { margin-top: 20px; }
       .modal-body hr { margin-top: 0; margin-bottom: 0; }
       </style>
@@ -121,12 +116,17 @@
 </div><!-- /.modal -->
 <script type="text/javascript">
 
-  __lua.env.print = __lua.makeFunction(function print() { 
-    stdout += Array.prototype.join.apply(arguments, ["\t"]) + "\n";
-    console.log.apply(console, arguments); 
-  });
+__lua.env.io.write =  function() {
+    stdout += Array.prototype.reduce.call(arguments, (sum, i) => sum + i);
+}
 
-  print = __lua.env.print;
+__lua.env.print = __lua.makeFunction(function print() { 
+  var args = Array.prototype.map.call(arguments, __lua.makeString);
+  stdout += Array.prototype.join.call(args, "\t") + "\n";
+  console.log.apply(console, args); 
+});
+
+_G = __lua.env;
 
 var myAppModule = angular.module('MyApp', ['ui.ace']);
 function update($scope) {
@@ -134,10 +134,14 @@ function update($scope) {
     $scope.error = "";
     window.localStorage["code"] = $scope.code;
     var c = parser.parse($scope.code, $scope.opts);
-    $scope.code2 = "(function()\n" + escodegen.generate(c) + ")();";
+    $scope.code2 = "(function() " + escodegen.generate(c) + ")();";
   } catch ( e ) {
-
-    $scope.error = e.message + "\n\n\n" + "at " + e.line + ":" + e.column;
+    if (e.location) {
+      var errloc = e.location.start;
+      $scope.error = e.message + "\n\n\n" + "at " + errloc.line + ":" + errloc.column;
+    } else {
+      $scope.error = e.message
+    }
     $scope.code2 = "";
   }
 }
@@ -157,12 +161,13 @@ function main($scope) {
     update($scope);
   };
   $scope.xeval = function() {
-    update($scope);
-    try { 
-      stdout = "Output:\n"
-      eval($scope.code2);
+    try {
+      stdout = 'Output:\n';
+      var gKeys = Object.keys(_G);
+      eval($scope.code2.replace(/^\(function\(\)/, '(function(' + gKeys.join(',') + ')')
+            .replace(/\(\);$/, '(' + gKeys.map(x => '_G.' + x).join(',') + ');'));
     } catch ( e ) {
-      stdout = "Error:\n" + e;
+      stdout = 'Error:\n' + e + '\n' + e.stack;
     }
     $scope.error = stdout;
   }
