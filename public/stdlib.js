@@ -903,7 +903,7 @@ env.something = function something(table) {
     }
     return __lua.makeMultiReturn.apply(__lua, array);
 };
-env.math = Object.assign({}, Math, {
+env.math = Object.assign(Object.create(Math), {
     huge: Infinity,
     pi: Math.PI,
     fmod: function (value, modulo) { return value % modulo; },
