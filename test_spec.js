@@ -6,7 +6,7 @@ var vm = require("vm");
 
 var helpers = fs.readFileSync("helpers.js").toString();
 var lang = fs.readFileSync("lua.pegjs").toString();
-var parser = peg.buildParser(helpers + lang);
+var parser = peg.generate(helpers + lang);
 var exec = require('child_process').exec;
 
 function leval(src) {
@@ -93,8 +93,33 @@ tests = [
         'o = g()',
         'return json(o) .. " " .. eval("(function(x) { return x.__luaType; })(o)")',
         ],'{"x":1,"y":20} table'
+    ],
+    [
+        [
+        'eval("var array = [1,1,2,5,7];")',
+        'return array[4]'
+        ],5
+    ],
+    [
+        [
+        'eval("var array = [1,1,2,5,7];")',
+        'out = "pairs"',
+        'for k,v in pairs(array) do out = out .. " " .. k .. "," .. v end',
+        'return out'
+        ],'pairs 1,1 2,1 3,2 4,5 5,7'
+    ],
+    [
+        [
+        'eval("var array = [1,1,2,5,7];")',
+        'out = "ipairs"',
+        'for k,v in ipairs(array) do out = out .. " " .. k .. "," .. v end',
+        'return out'
+        ],'ipairs 1,1 2,1 3,2 4,5 5,7'
+    ],
+    [
+	['while false do end'],
+	void 0
     ]
-
 
 ];
 
@@ -150,25 +175,25 @@ describe("Simple Tests", function() {
 
 function testDirectory(dir) {
     return function() {
-    fs.readdirSync(dir).forEach(function(f) {
-        it(dir + '/' + f, function(done) {
-            var code = fs.readFileSync(dir + '/' + f).toString();
-            //console.log("Start " + f);
-            var v = leval(code);
-            if ( typeof(v) != "function" ) throw v;
+        fs.readdirSync(dir).forEach(function(f) {
+            it(dir + '/' + f, function(done) {
+                var code = fs.readFileSync(dir + '/' + f).toString();
+                //console.log("Start " + f);
+                var v = leval(code);
+                if ( typeof(v) != "function" ) throw v;
 
-            (function(env) {
-                var a = vm.runInNewContext(v(), env, "vm");     
-                exec('lua ' + dir + '/' + f, function(err, stdout, stderr) {
-                    if ( stderr !== "" ) expect(false).toBe(true);
-                    expect(env.getStdOut()).toEqual(stdout.replace(/\r\n/g,"\n"));
-                    done();
-                });
+                (function(env) {
+                    var a = vm.runInNewContext(v(), env, "vm");     
+                    exec('lua ' + dir + '/' + f, function(err, stdout, stderr) {
+                        if ( stderr !== "" ) expect(false).toBe(true);
+                        expect(env.getStdOut()).toEqual(stdout.replace(/\r\n/g,"\n"));
+                        done();
+                    });
 
-            })(makenv());
-            //console.log("End " + f);
+                })(makenv());
+                //console.log("End " + f);
+            });
         });
-    });
     };
 }
 

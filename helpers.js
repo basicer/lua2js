@@ -1,6 +1,4 @@
 {
-  function loc() { return {start: { line: line(), column: column() } } }
-  function range() { return [offset(), offset() + text().length]; }
   function listHelper(a,b,c) { return a == null ? [] : [a].concat(b.map(function(b) { return b[c || 2]; })); }
   function opt(name, def) { return name in options ? options[name] : def }
 
@@ -16,8 +14,7 @@
 
   function wrapNode(obj, hasScope) {
     hasScope = !!hasScope 
-    obj.loc = loc();
-    obj.range = range();
+    obj.loc = location();
     obj.hasScope = hasScope;
     obj.text = text();
     return obj;
@@ -29,16 +26,17 @@
   }
 
   function eUnterminated(type, end, start) {
-    var xline = start !== undefined ? start.loc.start.line : (line());
-    var xcol = start !== undefined ? start.loc.start.column : (column());
+    var loc = start !== undefined || location();
+    var xline = loc ? loc.start.line : start.loc.start.line;
+    var xcol = loc ? loc.start.column : start.loc.start.column;
 
-    eMsg("`" + (end || "end") + "` expected (to close " + type + " at " + xline + ":" + xcol + ") at " + line() +  ":" + column() );
+    eMsg("`" + (end || "end") + "` expected (to close " + type + " at " + xline + ":" + xcol + ")" );
     return true;
   }
 
   function eMsg(why) {
     if ( !opt("loose", false) ) error(why);
-    errors.push({msg: why, loc: loc(), range: range()});
+    errors.push({msg: why, loc: location()});
     return true;
   }
 
@@ -81,7 +79,9 @@
 
   var builder = {
     assignmentExpression: function(op, left, right) { return wrapNode({type: "AssignmentExpression", operator: op, left: left, right: right }); },
-    binaryExpression: function(op, left, right) { return wrapNode({type: "BinaryExpression", operator: op, left: left, right: right }); },
+    binaryExpression: function(op, left, right) {
+        return wrapNode({type: (op == '||' || op == '&&') ? "LogicalExpression" : "BinaryExpression", operator: op, left: left, right: right });
+    },
     blockStatement: function(body) { return wrapNode({ type: "BlockStatement", body: body}); },
     callExpression: function(callee, args) { return wrapNode({ type: "CallExpression", callee: callee, arguments: args}); },
     emptyStatement: function() { return wrapNode({ type: "EmptyStatement" }); },
@@ -145,8 +145,6 @@
                 nue = bhelper.luaOperator("indexAssign", nue, prop, exp, {type:"Literal", value: helper});
             }
 
-            nue = {type: "ConditionalExpression",test: nue, consequent: exp, alternate: out};
-
             out = nue;
         }
             
@@ -191,7 +189,7 @@
                         builder.functionExpression(null, names, builder.blockStatement(body)),
                         i("apply")
                     ),
-                    [{type: "Literal", value: null}, bhelper.luaOperatorA("expandReturnValues", explist)]
+                    [{type: "Literal", value: null}, bhelper.luaOperatorA("expandArgList", explist)]
                 ),
                 type: "ExpressionStatement"
             }
@@ -274,8 +272,7 @@
             
             return bhelper.luaOperator(map[op], a, b);
         } else {
-
-            if ( op == "~=" ) xop = "!=";
+            if ( op == "~=" ) op = "!=";
             else if ( op == ".." ) op = "+";
             else if ( op == "or" ) op = "||";
             else if ( op == "and" ) op = "&&";
@@ -320,7 +317,7 @@
                     var rexpr = builder.memberExpression(tmp.id, callee.property, callee.computed);
                     var rcallee = bhelper.translateExpressionIfNeeded(rexpr);
                     var expr = bhelper.luaOperator.apply(bhelper, ["call", flagso, rcallee, tmp.id, helper].concat(args));
-                    return result = bhelper.encloseDeclsEx([
+                    return bhelper.encloseDeclsEx([
                         builder.returnStatement(
                             expr
                         )
@@ -358,7 +355,6 @@
             if ( !exp.computed ) prop = {"type": "Literal", value: prop.name };
             var nu = bhelper.memberExpression(bhelper.translateExpressionIfNeeded(exp.object), prop, false);
             nu.origional = exp;
-            nu.range = exp.range;
             nu.loc = exp.loc;
             return nu;
         }

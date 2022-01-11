@@ -7,7 +7,7 @@ var fs = require("fs");
 
 var helpers = fs.readFileSync("helpers.js").toString();
 var lang = fs.readFileSync("lua.pegjs").toString();
-var parser = peg.buildParser(helpers + lang, {output: 'source'});
+var parser = peg.generate(helpers + lang, {output: 'source'});
 
 app.get('/piler.js', function(req,res) {
 	res.setHeader('content-type', 'text/javascript');
